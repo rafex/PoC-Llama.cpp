@@ -1,0 +1,9 @@
+# Worktrees efímeros creados por Claude Code — nunca commitear
+worktrees/
+
+# Configuración local (sobreescribe settings.json sin subirse al repo)
+settings.local.json
+
+# Archivos de sesión y tareas temporales
+todos/
+tasks/
