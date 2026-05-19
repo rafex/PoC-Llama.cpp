@@ -56,4 +56,4 @@ LLAMA_BUILD_EXAMPLES = "ON"
 [compiler]
 march  = "ivybridge"
 mtune  = "ivybridge"
-cflags = "-O3 -ffast-math"
+cflags = "-O3 -ffast-math -fno-finite-math-only"
