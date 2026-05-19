@@ -28,16 +28,35 @@ default:
 # Flujos de alto nivel
 # =============================================================================
 
-# Flujo completo de primera instalación
+# Flujo completo de primera instalación (detección automática de plataforma)
 setup: check-deps clone compile install post-install
     @echo ""
     @echo "[OK] Setup completo. Versión instalada:"
     @just install-list
 
-# Flujo de actualización a nueva versión
+# Flujo completo con perfil TOML explícito (uso: just setup-profile build/templates/apple/macmini6.2/build.toml)
+setup-profile profile: check-deps clone
+    make compile PROFILE={{profile}}
+    make install
+    make post-install
+    @echo ""
+    @echo "[OK] Setup con perfil {{profile}} completado."
+    @just install-list
+
+# Flujo de actualización a nueva versión (detección automática)
 upgrade: clone compile install post-install install-symlinks
     @echo ""
     @echo "[OK] Upgrade completado."
+    @just install-list
+
+# Upgrade con perfil TOML explícito
+upgrade-profile profile: clone
+    make compile PROFILE={{profile}}
+    make install
+    make post-install
+    make install-symlinks
+    @echo ""
+    @echo "[OK] Upgrade con perfil {{profile}} completado."
     @just install-list
 
 # =============================================================================

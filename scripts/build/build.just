@@ -1,21 +1,41 @@
 # =============================================================================
 # build.just — recetas de build delegadas a make
-# justfile NUNCA duplica lógica de compilación; delega a Makefile/build.mk.
+#
+# Uso con perfil TOML:
+#   just compile build/templates/apple/macmini6.2/build.toml
+#   just compile   ← detección automática de plataforma
 # =============================================================================
 
 # Clona el repositorio llama.cpp
 clone:
     make clone
 
-# Configura cmake
+# Configura cmake (detección automática de plataforma)
 configure:
     make configure
 
-# Compila llama.cpp
+# Compila llama.cpp (detección automática)
 compile:
     make compile
 
-# Limpia artefactos de build sin borrar el repo clonado
+# Compila llama.cpp con un perfil TOML específico
+compile-profile profile:
+    make compile PROFILE={{profile}}
+
+# Muestra los flags cmake del perfil (sin compilar)
+profile-info profile="":
+    #!/usr/bin/env bash
+    if [[ -z "{{profile}}" ]]; then
+        make profile-info
+    else
+        make profile-info PROFILE="{{profile}}"
+    fi
+
+# Lista los perfiles disponibles en build/templates/
+profile-list:
+    make profile-list
+
+# Limpia artefactos cmake (mantiene el repo clonado)
 build-clean:
     make build-clean
 

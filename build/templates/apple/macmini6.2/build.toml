@@ -1,0 +1,43 @@
+# =============================================================================
+# Perfil de compilación: Apple Mac mini 6,2
+#
+# Hardware identificado con:
+#   sudo dmidecode -t system   → Macmini6,2 / Apple Inc.
+#   lscpu                      → Intel Core i7-3615QM (Ivy Bridge, 4C/8T)
+#
+# Capacidades CPU relevantes (de /proc/cpuinfo flags):
+#   SSE4.1, SSE4.2, AVX, F16C — SÍ
+#   AVX2, FMA3, AVX-512        — NO (Ivy Bridge es pre-Haswell)
+# =============================================================================
+
+[hardware]
+manufacturer   = "Apple Inc."
+product        = "Macmini6,2"
+cpu_model      = "Intel Core i7-3615QM"
+cpu_arch       = "ivybridge"
+logical_cpus   = 8
+physical_cores = 4
+os             = "linux"
+
+[build]
+jobs = 8
+type = "Release"
+
+# Flags cmake: cada entrada genera -DKEY=VALUE
+[cmake.flags]
+GGML_BLAS        = "ON"
+GGML_BLAS_VENDOR = "OpenBLAS"
+GGML_AVX         = "ON"
+GGML_AVX2        = "OFF"
+GGML_F16C        = "ON"
+GGML_FMA         = "OFF"
+GGML_METAL       = "OFF"
+GGML_NATIVE      = "OFF"
+LLAMA_BUILD_TESTS    = "OFF"
+LLAMA_BUILD_EXAMPLES = "ON"
+
+# Flags del compilador C y C++
+[compiler]
+march  = "ivybridge"
+mtune  = "ivybridge"
+cflags = "-O3 -ffast-math"
