@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-toml-reader.py — Lee un perfil build.toml y emite flags para cmake/shell/make.
+toml-reader.py — Lee un perfil build.toml y emite flags para cmake/shell/make/deps.
 
 Uso:
   python3 scripts/commons/toml-reader.py <perfil.toml> --format cmake
   python3 scripts/commons/toml-reader.py <perfil.toml> --format shell
   python3 scripts/commons/toml-reader.py <perfil.toml> --format make
+  python3 scripts/commons/toml-reader.py <perfil.toml> --format deps
   python3 scripts/commons/toml-reader.py <perfil.toml> --key build.jobs
 """
 
@@ -31,9 +32,16 @@ def load(path: str) -> dict:
 def cmake_flags(data: dict) -> str:
     cmake = data.get("cmake", {}).get("flags", {})
     compiler = data.get("compiler", {})
-    build_type = data.get("build", {}).get("type", "Release")
+    build = data.get("build", {})
+    build_type = build.get("type", "Release")
+    generator = build.get("generator", "")
 
-    parts = [f"-DCMAKE_BUILD_TYPE={build_type}"]
+    parts = []
+
+    if generator:
+        parts.append(f'-G "{generator}"')
+
+    parts.append(f"-DCMAKE_BUILD_TYPE={build_type}")
 
     march = compiler.get("march", "")
     mtune = compiler.get("mtune", "")
@@ -54,6 +62,19 @@ def cmake_flags(data: dict) -> str:
     return " ".join(parts)
 
 
+def deps_vars(data: dict) -> str:
+    dep = data.get("dependencies", {})
+    commands = " ".join(dep.get("commands", []))
+    pkg_config = " ".join(dep.get("pkg_config", []))
+    apt = " ".join(dep.get("apt_packages", []))
+    lines = [
+        f'DEP_COMMANDS="{commands}"',
+        f'DEP_PKG_CONFIG="{pkg_config}"',
+        f'DEP_APT_PACKAGES="{apt}"',
+    ]
+    return "\n".join(lines)
+
+
 def shell_vars(data: dict) -> str:
     compiler = data.get("compiler", {})
     build = data.get("build", {})
@@ -71,6 +92,7 @@ def shell_vars(data: dict) -> str:
     lines = [
         f'BUILD_TYPE="{build.get("type", "Release")}"',
         f'BUILD_JOBS="{build.get("jobs", 4)}"',
+        f'BUILD_GENERATOR="{build.get("generator", "")}"',
         f'COMPILER_CFLAGS="{cpu_flags}"',
         f'COMPILER_CXXFLAGS="{cpu_flags}"',
         f'HW_ARCH="{hw.get("cpu_arch", "")}"',
@@ -104,7 +126,7 @@ def main() -> None:
     parser.add_argument("profile", help="Ruta al archivo build.toml")
     parser.add_argument(
         "--format",
-        choices=["cmake", "shell", "make"],
+        choices=["cmake", "shell", "make", "deps"],
         default="cmake",
         help="Formato de salida (default: cmake)",
     )
@@ -126,6 +148,8 @@ def main() -> None:
         print(shell_vars(data))
     elif args.format == "make":
         print(make_vars(data))
+    elif args.format == "deps":
+        print(deps_vars(data))
 
 
 if __name__ == "__main__":

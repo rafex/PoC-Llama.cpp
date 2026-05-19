@@ -35,7 +35,9 @@ setup: check-deps clone compile install post-install
     @just install-list
 
 # Flujo completo con perfil explícito (uso: just setup-profile apple/macmini6.2)
-setup-profile profile: check-deps clone
+setup-profile profile:
+    just check-deps {{profile}}
+    just clone
     make compile PROFILE={{profile}}
     make install
     make post-install
@@ -50,7 +52,9 @@ upgrade: clone compile install post-install install-symlinks
     @just install-list
 
 # Upgrade con perfil explícito (uso: just upgrade-profile apple/macmini6.2)
-upgrade-profile profile: clone
+upgrade-profile profile:
+    just check-deps {{profile}}
+    just clone
     make compile PROFILE={{profile}}
     make install
     make post-install

@@ -20,8 +20,23 @@ physical_cores = 4
 os             = "linux"
 
 [build]
-jobs = 8
-type = "Release"
+jobs      = 8
+type      = "Release"
+generator = "Unix Makefiles"
+
+[dependencies]
+# Binarios verificados con `command -v`
+commands = ["git", "cmake", "gcc", "g++", "pkg-config"]
+# Librerías verificadas con `pkg-config --exists`
+pkg_config = ["openblas"]
+# Paquetes sugeridos para instalar (solo referencia, no se instalan automáticamente)
+apt_packages = [
+  "build-essential",
+  "cmake",
+  "git",
+  "libopenblas-dev",
+  "pkg-config",
+]
 
 # Flags cmake: cada entrada genera -DKEY=VALUE
 [cmake.flags]
