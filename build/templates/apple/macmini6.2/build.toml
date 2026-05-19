@@ -35,6 +35,7 @@ apt_packages = [
   "cmake",
   "git",
   "libopenblas-dev",
+  "libssl-dev",
   "pkg-config",
 ]
 
