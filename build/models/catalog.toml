@@ -1,0 +1,125 @@
+# =============================================================================
+# catalog.toml — catálogo curado de modelos GGUF para descarga
+#
+# Campos por modelo:
+#   id          — identificador corto único
+#   name        — nombre legible
+#   type        — chat | embedding | coding | multimodal
+#   hf_repo     — repositorio en HuggingFace (<org>/<repo>)
+#   hf_file     — archivo .gguf dentro del repo
+#   size_gb     — tamaño aproximado del archivo descargado
+#   ram_gb      — RAM mínima recomendada para inferencia
+#   dest_dir    — subdirectorio dentro de /srv/models/
+#   description — descripción breve
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Chat — modelos de conversación
+# -----------------------------------------------------------------------------
+
+[[models]]
+id          = "qwen2.5-0.5b-chat-q4"
+name        = "Qwen 2.5 0.5B Instruct Q4_K_M"
+type        = "chat"
+hf_repo     = "Qwen/Qwen2.5-0.5B-Instruct-GGUF"
+hf_file     = "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+size_gb     = 0.4
+ram_gb      = 1
+dest_dir    = "gguf"
+description = "Ultra ligero. Ideal para pruebas en hardware muy limitado."
+
+[[models]]
+id          = "qwen2.5-1.5b-chat-q4"
+name        = "Qwen 2.5 1.5B Instruct Q4_K_M"
+type        = "chat"
+hf_repo     = "Qwen/Qwen2.5-1.5B-Instruct-GGUF"
+hf_file     = "qwen2.5-1.5b-instruct-q4_k_m.gguf"
+size_gb     = 1.0
+ram_gb      = 2
+dest_dir    = "gguf"
+description = "Ligero y rápido. Buen balance para el Macmini 6,2."
+
+[[models]]
+id          = "qwen2.5-3b-chat-q4"
+name        = "Qwen 2.5 3B Instruct Q4_K_M"
+type        = "chat"
+hf_repo     = "Qwen/Qwen2.5-3B-Instruct-GGUF"
+hf_file     = "qwen2.5-3b-instruct-q4_k_m.gguf"
+size_gb     = 2.0
+ram_gb      = 4
+dest_dir    = "gguf"
+description = "Buena calidad de respuesta con 4 GB de RAM."
+
+[[models]]
+id          = "phi3-mini-chat-q4"
+name        = "Phi-3 Mini 4K Instruct Q4_K_M"
+type        = "chat"
+hf_repo     = "microsoft/Phi-3-mini-4k-instruct-gguf"
+hf_file     = "Phi-3-mini-4k-instruct-q4.gguf"
+size_gb     = 2.2
+ram_gb      = 4
+dest_dir    = "gguf"
+description = "Excelente razonamiento para su tamaño. Contexto 4K."
+
+[[models]]
+id          = "llama3.2-1b-chat-q4"
+name        = "Llama 3.2 1B Instruct Q4_K_M"
+type        = "chat"
+hf_repo     = "bartowski/Llama-3.2-1B-Instruct-GGUF"
+hf_file     = "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
+size_gb     = 0.8
+ram_gb      = 2
+dest_dir    = "gguf"
+description = "Meta Llama 3.2, versión 1B. Rápido en hardware limitado."
+
+[[models]]
+id          = "llama3.2-3b-chat-q4"
+name        = "Llama 3.2 3B Instruct Q4_K_M"
+type        = "chat"
+hf_repo     = "bartowski/Llama-3.2-3B-Instruct-GGUF"
+hf_file     = "Llama-3.2-3B-Instruct-Q4_K_M.gguf"
+size_gb     = 2.0
+ram_gb      = 4
+dest_dir    = "gguf"
+description = "Meta Llama 3.2, versión 3B. Buena calidad general."
+
+# -----------------------------------------------------------------------------
+# Coding — modelos especializados en código
+# -----------------------------------------------------------------------------
+
+[[models]]
+id          = "qwen2.5-coder-1.5b-q4"
+name        = "Qwen 2.5 Coder 1.5B Instruct Q4_K_M"
+type        = "coding"
+hf_repo     = "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF"
+hf_file     = "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+size_gb     = 1.0
+ram_gb      = 2
+dest_dir    = "gguf"
+description = "Especializado en generación de código. Muy eficiente."
+
+[[models]]
+id          = "qwen2.5-coder-3b-q4"
+name        = "Qwen 2.5 Coder 3B Instruct Q4_K_M"
+type        = "coding"
+hf_repo     = "Qwen/Qwen2.5-Coder-3B-Instruct-GGUF"
+hf_file     = "qwen2.5-coder-3b-instruct-q4_k_m.gguf"
+size_gb     = 2.0
+ram_gb      = 4
+dest_dir    = "gguf"
+description = "Mejor calidad de código, requiere 4 GB de RAM."
+
+# -----------------------------------------------------------------------------
+# Embeddings — modelos de representación vectorial
+# -----------------------------------------------------------------------------
+
+[[models]]
+id          = "nomic-embed-v1.5-q4"
+name        = "Nomic Embed Text v1.5 Q4_K_M"
+type        = "embedding"
+hf_repo     = "nomic-ai/nomic-embed-text-v1.5-GGUF"
+hf_file     = "nomic-embed-text-v1.5.Q4_K_M.gguf"
+size_gb     = 0.08
+ram_gb      = 1
+dest_dir    = "embeddings"
+description = "Embeddings de alta calidad. Esencial para RAG."

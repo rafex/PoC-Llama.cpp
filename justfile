@@ -18,6 +18,7 @@ import "scripts/build/build.just"
 import "scripts/install/install.just"
 import "scripts/post-install/post-install.just"
 import "scripts/test/test.just"
+import "scripts/models/models.just"
 import "scripts/debug/debug.just"
 import "scripts/uninstall/uninstall.just"
 
