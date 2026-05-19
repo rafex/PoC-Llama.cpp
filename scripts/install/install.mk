@@ -8,19 +8,25 @@
 LLAMA_BINARIES := llama-cli llama-server llama-bench llama-embedding llama-run
 
 ## Instala binarios compilados en la versión activa
-install: compile install-binaries install-models-dir install-symlinks install-check
+install: install-sudo-check install-binaries install-models-dir install-symlinks install-check
 	$(call log_ok,Instalación completa: $(INSTALL_DIR))
 
-install-binaries: compile
+## Solicita credenciales sudo antes de empezar (la compilación puede haber expirado el ticket)
+install-sudo-check:
+	$(call log_info,Solicitando privilegios de administrador para instalar en $(INSTALL_BASE) ...)
+	@sudo -v
+	@sudo mkdir -p $(INSTALL_DIR)
+
+install-binaries: install-sudo-check
 	$(call log_info,Instalando binarios en $(INSTALL_DIR)/bin ...)
-	@cmake --install $(LLAMA_BUILD_DIR) --prefix $(INSTALL_DIR)
+	@sudo cmake --install $(LLAMA_BUILD_DIR) --prefix $(INSTALL_DIR)
 	$(call log_ok,Binarios instalados.)
 
 install-models-dir:
 	$(call log_info,Creando estructura de modelos en $(MODELS_DIR) ...)
-	@mkdir -p $(MODELS_DIR)/{gguf,embeddings,rerankers,multimodal}
+	@sudo mkdir -p $(MODELS_DIR)/{gguf,embeddings,rerankers,multimodal}
 	@if [ ! -e "$(INSTALL_DIR)/models" ]; then \
-	  ln -s $(MODELS_DIR) $(INSTALL_DIR)/models; \
+	  sudo ln -s $(MODELS_DIR) $(INSTALL_DIR)/models; \
 	fi
 	$(call log_ok,Directorio de modelos listo.)
 
