@@ -24,7 +24,7 @@ check-deps:
     #!/usr/bin/env bash
     set -euo pipefail
     missing=()
-    for cmd in git cmake ninja gcc; do
+    for cmd in git cmake gcc; do
         command -v "$cmd" &>/dev/null || missing+=("$cmd")
     done
     if [[ ${#missing[@]} -gt 0 ]]; then

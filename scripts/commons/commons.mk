@@ -50,25 +50,27 @@ CMAKE_COMMON_FLAGS := \
   $(CMAKE_PLATFORM_FLAGS)
 
 # --- Colores para output ------------------------------------------------------
-RESET  := \033[0m
-BOLD   := \033[1m
-GREEN  := \033[32m
-YELLOW := \033[33m
-CYAN   := \033[36m
-RED    := \033[31m
+# Secuencias ANSI reales (via shell para que $(info ...) las interprete)
+RESET  := $(shell printf '\033[0m')
+BOLD   := $(shell printf '\033[1m')
+GREEN  := $(shell printf '\033[32m')
+YELLOW := $(shell printf '\033[33m')
+CYAN   := $(shell printf '\033[36m')
+RED    := $(shell printf '\033[31m')
 
+# $(info ...) es un built-in de make: no necesita @ y funciona dentro de define/call
 define log_info
-  @printf "$(CYAN)[INFO]$(RESET)  %s\n" "$(1)"
+$(info $(CYAN)[INFO]$(RESET)  $(1))
 endef
 
 define log_ok
-  @printf "$(GREEN)[OK]$(RESET)    %s\n" "$(1)"
+$(info $(GREEN)[OK]$(RESET)    $(1))
 endef
 
 define log_warn
-  @printf "$(YELLOW)[WARN]$(RESET)  %s\n" "$(1)"
+$(info $(YELLOW)[WARN]$(RESET)  $(1))
 endef
 
 define log_error
-  @printf "$(RED)[ERROR]$(RESET) %s\n" "$(1)"
+$(info $(RED)[ERROR]$(RESET) $(1))
 endef
