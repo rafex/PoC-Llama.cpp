@@ -34,8 +34,8 @@ clone:
 	@if [ -d "$(LLAMA_SRC_DIR)/.git" ]; then \
 	  printf "$(YELLOW)[WARN]$(RESET)  El repositorio ya existe. Usa 'make build-clean' si quieres re-clonar.\n"; \
 	else \
-	  git clone --depth=1 $(LLAMA_REPO_URL) $(LLAMA_SRC_DIR); \
-	  $(call log_ok,Repositorio clonado.); \
+	  git clone --depth=1 $(LLAMA_REPO_URL) $(LLAMA_SRC_DIR) && \
+	  printf "$(GREEN)[OK]$(RESET)    Repositorio clonado.\n"; \
 	fi
 
 ## Configura cmake con el perfil activo (PROFILE=... o detección automática)
