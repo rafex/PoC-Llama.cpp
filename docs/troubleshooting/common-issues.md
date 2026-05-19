@@ -1,71 +1,101 @@
 # Problemas comunes
 
-## La compilación falla con error de AVX
+## Error: `-ffinite-math-only` en ggml
 
-**Síntoma:** cmake falla mencionando instrucciones AVX no soportadas.
-
-**Causa:** el CPU detectado no soporta las flags generadas automáticamente.
-
-**Solución:**
-```bash
-# Ver qué flags se detectaron
-make debug-cpu
-
-# Compilar sin optimizaciones nativas
-CMAKE_PLATFORM_FLAGS="-DGGML_NATIVE=OFF" make compile
+**Síntoma:**
 ```
+error: #error "some routines in ggml.c require non-finite math arithmetics
+       -- pass -fno-finite-math-only to the compiler to fix"
+```
+
+**Causa:** `-ffast-math` habilita implícitamente `-ffinite-math-only`, que ggml
+prohíbe porque sus rutinas usan NaN e infinitos.
+
+**Solución:** el perfil debe incluir `-fno-finite-math-only` para sobrescribir
+ese subconjunto de `-ffast-math`. Verificar en `build.toml`:
+```toml
+[compiler]
+cflags = "-O3 -ffast-math -fno-finite-math-only"
+```
+
+Luego limpiar el cmake cache y recompilar:
+```bash
+make build-clean
+just compile-profile apple/macmini6.2
+```
+
+## `check-deps` reporta falsos positivos (arrays vacíos)
+
+**Síntoma:** `[WARN] Comandos faltantes: ` (línea vacía) aunque todo está instalado.
+
+**Causa:** versión de `check-deps` anterior al fix de deduplicación con arrays vacíos.
+
+**Solución:** `git pull` para obtener la corrección.
 
 ## `llama-cli` no se encuentra en PATH después de install
 
-**Causa:** los symlinks en `/usr/local/bin` apuntan a la versión activa, pero
-el shell tiene el PATH cacheado.
+**Causa:** los symlinks en `/usr/local/bin` se crearon bien pero el shell tiene el
+PATH cacheado.
 
-**Solución:**
 ```bash
-# En bash/zsh
-hash -r
-
-# Verificar
+hash -r          # limpia la caché de comandos en bash/zsh
+which llama-cli  # debe apuntar a /usr/local/bin/llama-cli
 just install-check
-which llama-cli
 ```
 
 ## El servidor no responde después de `just run`
 
-**Posibles causas:**
-
-1. El modelo no existe en la ruta especificada:
+1. **Modelo no existe en la ruta:**
    ```bash
    just models
    ```
 
-2. Puerto en uso:
+2. **Puerto en uso:**
    ```bash
-   lsof -i :8080
+   ss -tlnp | grep 8080
    ```
 
-3. RAM insuficiente para el modelo elegido — ver [guía de modelos](../models/guide.md).
+3. **RAM insuficiente** para el modelo — ver [guía de modelos](../models/guide.md).
 
-## Metal/GPU no se activa en macOS
+## cmake no encuentra OpenBLAS
 
-**Verificar que se compiló con Metal:**
+**Síntoma:** `Could NOT find BLAS` durante la configuración cmake.
+
+**Causa:** `libopenblas-dev` no está instalado.
+
+**Solución:**
 ```bash
-make debug-env | grep METAL
-llama-cli --version  # debe mencionar Metal
+just check-deps apple/macmini6.2   # instala automáticamente
 ```
 
-Si no aparece Metal, recompilar:
+O manualmente:
 ```bash
+sudo apt-get install -y libopenblas-dev pkg-config
+```
+
+## cmake no encuentra OpenSSL
+
+**Síntoma:** `Could NOT find OpenSSL` — warning durante la configuración.
+
+**Impacto:** `llama-server` compila sin soporte HTTPS. Para uso local no es crítico.
+
+**Solución:**
+```bash
+just check-deps apple/macmini6.2   # instala libssl-dev automáticamente
 make build-clean
-make compile
+just compile-profile apple/macmini6.2
 ```
 
 ## Rollback a versión anterior
 
 ```bash
-# Ver versiones disponibles
-just install-list
+just install-list                          # ver versiones disponibles
+just switch-version 2026.05.10-x86_64     # cambiar versión activa
+```
 
-# Cambiar a versión anterior
-just switch-version 2026.05.10-arm64
+## Recompilar desde cero
+
+```bash
+make build-purge                           # elimina también el repo clonado
+just setup-profile apple/macmini6.2        # clona, compila e instala de nuevo
 ```

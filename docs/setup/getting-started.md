@@ -1,61 +1,105 @@
 # Primeros pasos
 
-## Dependencias requeridas
+## Prerequisitos del sistema
 
-### macOS
+Solo se necesita `git` y `python3` (3.11+) para arrancar. El resto de
+dependencias las instala automáticamente `check-deps` según el perfil
+de hardware elegido.
+
 ```bash
-brew install cmake ninja git
+# Debian/Ubuntu
+sudo apt-get install -y git python3
+
+# macOS
+brew install git python3
 ```
 
-### Linux (Debian/Ubuntu)
-```bash
-sudo apt-get install -y cmake ninja-build build-essential git
-```
-
-### Linux (RHEL/Fedora)
-```bash
-sudo dnf install -y cmake ninja-build gcc-c++ git
-```
-
-## Instalación
+## Instalación con perfil de hardware
 
 ```bash
 # 1. Clona este repositorio
 git clone https://github.com/rafex/PoC-Llama.cpp.git
 cd PoC-Llama.cpp
 
-# 2. Verifica dependencias
-just check-deps
+# 2. Ver perfiles disponibles
+make profile-list
 
-# 3. Flujo completo (clone → compile → install → post-install)
-just setup
+# 3. Setup completo: verifica deps, instala si faltan, compila e instala
+just setup-profile apple/macmini6.2
 ```
 
-El proceso tarda entre 5 y 20 minutos según el hardware.
+`setup-profile` ejecuta en orden:
+1. `check-deps` — verifica comandos y librerías; llama a `apt-get` con sudo si falta algo
+2. `clone` — clona llama.cpp en `build/llama.cpp/` (solo si no existe)
+3. `compile` — configura cmake con el perfil y compila
+4. `install` — copia binarios a `/opt/llama.cpp/versions/<fecha>-<arch>/` y crea symlinks
+5. `post-install` — genera wrappers semánticos y ajusta permisos
+
+El proceso tarda entre 10 y 30 minutos según el hardware.
 
 ## Verificar la instalación
 
 ```bash
 just install-check
 llama-cli --version
+just install-list
 ```
 
-## Descargar un modelo para probar
+## Recompilar (después de un cambio de perfil o error)
 
 ```bash
-# Ejemplo con un modelo pequeño de Qwen (requiere huggingface-cli)
+# Limpia el cmake cache sin borrar el repo clonado
+make build-clean
+
+# Recompila con el perfil
+just compile-profile apple/macmini6.2
+
+# O el flujo completo si también hay que reinstalar
+just setup-profile apple/macmini6.2
+```
+
+## Descargar un modelo
+
+```bash
+# Instalar huggingface-cli
+pip install huggingface-hub
+
+# Modelo pequeño de Qwen (~1 GB)
 huggingface-cli download Qwen/Qwen2.5-1.5B-Instruct-GGUF \
   qwen2.5-1.5b-instruct-q4_k_m.gguf \
   --local-dir /srv/models/gguf/
 
-# Probar en modo chat
-just chat /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
+# Ver modelos disponibles
+just models
 ```
 
-## Iniciar el servidor HTTP
+## Usar los modelos
 
 ```bash
+# Chat interactivo en terminal
+just chat /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
+
+# Servidor HTTP (API compatible con OpenAI) en puerto 8080
 just run /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf 8080
+
+# Benchmark
+just bench /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
 ```
 
-El servidor queda disponible en `http://localhost:8080` con API compatible con OpenAI.
+El servidor queda disponible en `http://localhost:8080`.
+
+## Gestión de versiones
+
+```bash
+# Ver versiones instaladas y cuál es la activa
+just install-list
+
+# Cambiar versión activa (actualiza symlinks en /usr/local/bin)
+just switch-version 2026.05.19-x86_64
+
+# Desinstalar versión activa
+make uninstall
+
+# Desinstalar versión específica
+make uninstall-version VERSION=2026.05.19-x86_64
+```
