@@ -22,6 +22,7 @@ include scripts/commons/commons.mk
 include scripts/build/build.mk
 include scripts/install/install.mk
 include scripts/post-install/post-install.mk
+include scripts/test/test.mk
 include scripts/debug/debug.mk
 include scripts/uninstall/uninstall.mk
 

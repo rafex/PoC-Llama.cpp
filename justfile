@@ -17,6 +17,7 @@ import "scripts/commons/commons.just"
 import "scripts/build/build.just"
 import "scripts/install/install.just"
 import "scripts/post-install/post-install.just"
+import "scripts/test/test.just"
 import "scripts/debug/debug.just"
 import "scripts/uninstall/uninstall.just"
 
@@ -42,6 +43,7 @@ setup-profile profile:
     just _compile-if-needed {{profile}}
     make install PROFILE={{profile}}
     make post-install
+    make test
     @echo ""
     @echo "[OK] Setup con perfil {{profile}} completado."
     @just install-list
