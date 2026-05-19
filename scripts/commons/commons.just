@@ -62,9 +62,11 @@ check-deps profile="":
         fi
     fi
 
-    # Deduplica arrays
-    mapfile -t missing_cmds < <(printf '%s\n' "${missing_cmds[@]}" | sort -u)
-    mapfile -t missing_libs < <(printf '%s\n' "${missing_libs[@]}" | sort -u)
+    # Deduplica (solo si hay elementos; printf sin args emitiría línea vacía)
+    [[ ${#missing_cmds[@]} -gt 0 ]] && \
+        mapfile -t missing_cmds < <(printf '%s\n' "${missing_cmds[@]}" | sort -u)
+    [[ ${#missing_libs[@]} -gt 0 ]] && \
+        mapfile -t missing_libs < <(printf '%s\n' "${missing_libs[@]}" | sort -u)
 
     # --- Sin faltantes: todo bien ---------------------------------------------
     if [[ ${#missing_cmds[@]} -eq 0 && ${#missing_libs[@]} -eq 0 ]]; then
