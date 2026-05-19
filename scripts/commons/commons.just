@@ -9,6 +9,7 @@ models_dir      := "/srv/models"
 symlink_bin     := "/usr/local/bin"
 llama_repo_url  := "https://github.com/ggerganov/llama.cpp.git"
 llama_src_dir   := justfile_directory() / "build/llama.cpp"
+llama_build_dir := justfile_directory() / "build/llama.cpp/build-out"
 
 build_date      := `date +%Y.%m.%d`
 arch            := `uname -m`

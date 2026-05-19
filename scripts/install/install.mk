@@ -18,9 +18,26 @@ install-sudo-check:
 	@sudo mkdir -p $(INSTALL_DIR)
 
 install-binaries: install-sudo-check
-	$(call log_info,Instalando binarios en $(INSTALL_DIR)/bin ...)
-	@sudo cmake --install $(LLAMA_BUILD_DIR) --prefix $(INSTALL_DIR)
-	$(call log_ok,Binarios instalados.)
+	$(call log_info,Copiando binarios a $(INSTALL_DIR)/bin ...)
+	@sudo mkdir -p $(INSTALL_DIR)/bin
+	@installed=0; \
+	for bin in $(LLAMA_BINARIES); do \
+	  src="$(LLAMA_BUILD_DIR)/bin/$$bin"; \
+	  if [ -f "$$src" ]; then \
+	    sudo cp "$$src" "$(INSTALL_DIR)/bin/$$bin"; \
+	    sudo chmod 755 "$(INSTALL_DIR)/bin/$$bin"; \
+	    printf "$(GREEN)[OK]$(RESET)    $$bin\n"; \
+	    installed=$$((installed + 1)); \
+	  else \
+	    printf "$(YELLOW)[WARN]$(RESET)  no encontrado: $$src\n"; \
+	  fi; \
+	done; \
+	if [ "$$installed" -eq 0 ]; then \
+	  printf "$(RED)[ERROR]$(RESET) No se encontró ningún binario en $(LLAMA_BUILD_DIR)/bin\n"; \
+	  printf "$(RED)[ERROR]$(RESET) Ejecuta 'make compile' o 'just compile-profile <perfil>' primero.\n"; \
+	  exit 1; \
+	fi
+	$(call log_ok,Binarios instalados: $(INSTALL_DIR)/bin)
 
 install-models-dir:
 	$(call log_info,Creando estructura de modelos en $(MODELS_DIR) ...)

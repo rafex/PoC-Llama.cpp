@@ -35,11 +35,12 @@ setup: check-deps clone compile install post-install
     @just install-list
 
 # Flujo completo con perfil explícito (uso: just setup-profile apple/macmini6.2)
+# Si los binarios ya existen en build-out, omite la compilación.
 setup-profile profile:
     just check-deps {{profile}}
     just clone
-    make compile PROFILE={{profile}}
-    make install
+    just _compile-if-needed {{profile}}
+    make install PROFILE={{profile}}
     make post-install
     @echo ""
     @echo "[OK] Setup con perfil {{profile}} completado."
@@ -51,17 +52,30 @@ upgrade: clone compile install post-install install-symlinks
     @echo "[OK] Upgrade completado."
     @just install-list
 
-# Upgrade con perfil explícito (uso: just upgrade-profile apple/macmini6.2)
+# Upgrade con perfil explícito — siempre recompila para obtener código nuevo
 upgrade-profile profile:
     just check-deps {{profile}}
     just clone
     make compile PROFILE={{profile}}
-    make install
+    make install PROFILE={{profile}}
     make post-install
     make install-symlinks
     @echo ""
     @echo "[OK] Upgrade con perfil {{profile}} completado."
     @just install-list
+
+# Compila solo si los binarios no existen en build-out (evita recompilar si ya terminó)
+[private]
+_compile-if-needed profile:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    build_bin="{{llama_build_dir}}/bin"
+    if [[ -f "$build_bin/llama-cli" || -f "$build_bin/llama-server" ]]; then
+        echo "[INFO] Binarios ya compilados en $build_bin — saltando compilación."
+        echo "[INFO] Usa 'just upgrade-profile {{profile}}' para forzar recompilación."
+    else
+        make compile PROFILE={{profile}}
+    fi
 
 # =============================================================================
 # Runtime
