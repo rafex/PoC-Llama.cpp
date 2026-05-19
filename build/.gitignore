@@ -1,0 +1,14 @@
+# Ignore cloned llama.cpp source
+llama.cpp/
+
+# Ignore cmake build artifacts if built in-tree
+*/CMakeFiles/
+*/cmake_install.cmake
+*/CMakeCache.txt
+*.a
+*.so
+*.dylib
+
+# Ignore compiled binaries staged here before install
+bin/
+lib/

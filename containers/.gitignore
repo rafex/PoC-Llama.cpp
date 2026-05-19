@@ -1,0 +1,12 @@
+# Ignore generated container artifacts
+*.tar
+*.tar.gz
+
+# Ignore runtime secrets / env files
+.env
+*.env
+*-secrets.env
+
+# Ignore local override compose files
+docker-compose.override.yml
+compose.override.yml
