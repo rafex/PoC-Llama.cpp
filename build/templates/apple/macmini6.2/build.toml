@@ -28,7 +28,7 @@ generator = "Unix Makefiles"
 # Binarios verificados con `command -v`
 commands = ["git", "cmake", "gcc", "g++", "pkg-config"]
 # Librerías verificadas con `pkg-config --exists`
-pkg_config = ["openblas"]
+pkg_config = ["openblas", "openssl"]
 # Paquetes sugeridos para instalar (solo referencia, no se instalan automáticamente)
 apt_packages = [
   "build-essential",
