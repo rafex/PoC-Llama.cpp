@@ -34,7 +34,7 @@ setup: check-deps clone compile install post-install
     @echo "[OK] Setup completo. Versión instalada:"
     @just install-list
 
-# Flujo completo con perfil TOML explícito (uso: just setup-profile build/templates/apple/macmini6.2/build.toml)
+# Flujo completo con perfil explícito (uso: just setup-profile apple/macmini6.2)
 setup-profile profile: check-deps clone
     make compile PROFILE={{profile}}
     make install
@@ -49,7 +49,7 @@ upgrade: clone compile install post-install install-symlinks
     @echo "[OK] Upgrade completado."
     @just install-list
 
-# Upgrade con perfil TOML explícito
+# Upgrade con perfil explícito (uso: just upgrade-profile apple/macmini6.2)
 upgrade-profile profile: clone
     make compile PROFILE={{profile}}
     make install

@@ -2,7 +2,7 @@
 # build.just — recetas de build delegadas a make
 #
 # Uso con perfil TOML:
-#   just compile build/templates/apple/macmini6.2/build.toml
+#   just compile-profile apple/macmini6.2
 #   just compile   ← detección automática de plataforma
 # =============================================================================
 
@@ -18,7 +18,7 @@ configure:
 compile:
     make compile
 
-# Compila llama.cpp con un perfil TOML específico
+# Compila llama.cpp con un perfil específico (ej: apple/macmini6.2)
 compile-profile profile:
     make compile PROFILE={{profile}}
 

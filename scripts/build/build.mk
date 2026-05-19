@@ -2,20 +2,22 @@
 # build.mk — clonación, configuración y compilación de llama.cpp
 #
 # Variables de control:
-#   PROFILE  — ruta a un build.toml (ej: build/templates/apple/macmini6.2/build.toml)
+#   PROFILE  — identificador corto del perfil (ej: apple/macmini6.2)
+#              Se resuelve a build/templates/<PROFILE>/build.toml automáticamente.
 #              Si se omite, se usan CMAKE_COMMON_FLAGS de commons.mk (detección automática).
 #
 # Ejemplos:
 #   make compile
-#   make compile PROFILE=build/templates/apple/macmini6.2/build.toml
+#   make compile PROFILE=apple/macmini6.2
 # =============================================================================
 
-TOML_READER := scripts/commons/toml-reader.py
+TOML_READER    := scripts/commons/toml-reader.py
+TEMPLATES_DIR  := build/templates
 
 ifdef PROFILE
-  # Extraer flags y parámetros directamente del perfil TOML
-  PROFILE_CMAKE_FLAGS := $(shell python3 $(TOML_READER) "$(PROFILE)" --format cmake)
-  BUILD_JOBS          := $(shell python3 $(TOML_READER) "$(PROFILE)" --key build.jobs)
+  PROFILE_TOML        := $(TEMPLATES_DIR)/$(PROFILE)/build.toml
+  PROFILE_CMAKE_FLAGS := $(shell python3 $(TOML_READER) "$(PROFILE_TOML)" --format cmake)
+  BUILD_JOBS          := $(shell python3 $(TOML_READER) "$(PROFILE_TOML)" --key build.jobs)
   ACTIVE_CMAKE_FLAGS  := $(PROFILE_CMAKE_FLAGS) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
   ACTIVE_JOBS         := $(BUILD_JOBS)
 else
@@ -54,11 +56,11 @@ compile: configure
 ## Muestra los flags cmake que se usarían (sin compilar)
 profile-info:
 ifdef PROFILE
-	$(call log_info,Perfil: $(PROFILE))
-	@python3 $(TOML_READER) "$(PROFILE)" --format shell
+	$(call log_info,Perfil: $(PROFILE)  →  $(PROFILE_TOML))
+	@python3 $(TOML_READER) "$(PROFILE_TOML)" --format shell
 	@echo ""
 	$(call log_info,Flags cmake resultantes:)
-	@python3 $(TOML_READER) "$(PROFILE)" --format cmake | tr ' ' '\n' | grep -v '^$$'
+	@python3 $(TOML_READER) "$(PROFILE_TOML)" --format cmake | tr ' ' '\n' | grep -v '^$$'
 else
 	$(call log_info,Sin perfil TOML — usando detección automática de plataforma:)
 	@echo "  ACTIVE_CMAKE_FLAGS = $(ACTIVE_CMAKE_FLAGS)"
@@ -68,7 +70,10 @@ endif
 ## Lista los perfiles disponibles en build/templates/
 profile-list:
 	$(call log_info,Perfiles disponibles:)
-	@find build/templates -name "build.toml" | sort | sed 's|^|  |'
+	@find $(TEMPLATES_DIR) -name "build.toml" \
+	  | sed "s|$(TEMPLATES_DIR)/||;s|/build.toml||" \
+	  | sort \
+	  | sed 's|^|  |'
 
 ## Elimina artefactos cmake (mantiene el repo clonado)
 build-clean:
