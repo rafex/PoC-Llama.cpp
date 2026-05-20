@@ -15,6 +15,7 @@ Uso:
 
 import sys
 import os
+import pwd
 import argparse
 import subprocess
 import shutil
@@ -131,19 +132,29 @@ def download_file(repo: str, filename: str, dest: Path) -> bool:
     return result.returncode == 0 and dest.exists()
 
 
+def current_user() -> str:
+    """Devuelve el usuario real, incluso si el proceso padre fue invocado con sudo."""
+    sudo_user = os.environ.get("SUDO_USER")
+    if sudo_user:
+        return sudo_user
+    return pwd.getpwuid(os.getuid()).pw_name
+
+
 def ensure_dest_dir(dest_dir: Path) -> None:
+    user = current_user()
+
     if not dest_dir.exists():
         print(c("cyan", f"[INFO] Creando directorio: {dest_dir}"))
         try:
             dest_dir.mkdir(parents=True, exist_ok=True)
         except PermissionError:
             subprocess.run(["sudo", "mkdir", "-p", str(dest_dir)], check=True)
-            subprocess.run(["sudo", "chmod", "777", str(dest_dir)], check=True)
+            subprocess.run(["sudo", "chown", f"{user}:{user}", str(dest_dir)], check=True)
 
     # El directorio existe pero el usuario actual no tiene permisos de escritura
     if not os.access(dest_dir, os.W_OK):
-        print(c("cyan", f"[INFO] Ajustando permisos de escritura: {dest_dir}"))
-        subprocess.run(["sudo", "chmod", "777", str(dest_dir)], check=True)
+        print(c("cyan", f"[INFO] Transfiriendo propiedad a {user}: {dest_dir}"))
+        subprocess.run(["sudo", "chown", f"{user}:{user}", str(dest_dir)], check=True)
 
 
 def download_model(model: dict) -> None:
