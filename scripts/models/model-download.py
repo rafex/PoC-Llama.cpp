@@ -44,10 +44,10 @@ COLORS = {
 }
 
 TYPE_LABELS = {
-    "chat":      "💬 Chat",
-    "coding":    "💻 Código",
-    "embedding": "🔢 Embedding",
-    "multimodal":"🖼  Multimodal",
+    "chat":       "💬 Chat",
+    "coding":     "💻 Código",
+    "embedding":  "🔢 Embedding",
+    "multimodal": "🖼  Multimodal",
 }
 
 
@@ -92,34 +92,33 @@ def already_downloaded(model: dict) -> Optional[Path]:
     return dest if dest.exists() else None
 
 
-def download_with_llama_cli(model: dict, dest: Path) -> bool:
-    """Descarga usando el downloader nativo de llama.cpp."""
-    if not shutil.which("llama-cli"):
-        return False
-    # llama-cli puede descargar el modelo si se compila con CURL
-    # Usamos --no-warmup y -n 0 para descargar sin inferir
-    cmd = [
-        "llama-cli",
-        "--hf-repo", model["hf_repo"],
-        "--hf-file", model["hf_file"],
-        "--no-warmup",
-        "-n", "0",
-        "--model", str(dest),
-        "--log-disable",
-    ]
-    print(c("cyan", f"[INFO] Descargando con llama-cli: {' '.join(cmd[:4])} ..."))
-    result = subprocess.run(cmd, capture_output=True)
-    if result.returncode == 0 and dest.exists():
+def extra_files(model: dict) -> list[str]:
+    return model.get("hf_extra_files", [])
+
+
+def download_file(repo: str, filename: str, dest: Path) -> bool:
+    """Descarga un archivo individual: llama-cli primero, luego HTTP."""
+    if dest.exists():
+        print(c("yellow", f"[SKIP]  Ya existe: {dest.name}"))
         return True
-    # llama-cli no soporta --hf-repo en esta build o falló
-    return False
 
+    # Intentar con llama-cli (si tiene soporte HuggingFace compilado)
+    if shutil.which("llama-cli"):
+        cmd = [
+            "llama-cli",
+            "--hf-repo", repo,
+            "--hf-file", filename,
+            "--no-warmup", "-n", "0",
+            "--model", str(dest),
+            "--log-disable",
+        ]
+        result = subprocess.run(cmd, capture_output=True)
+        if result.returncode == 0 and dest.exists():
+            return True
 
-def download_with_http(model: dict, dest: Path) -> bool:
-    """Descarga directa desde HuggingFace via wget o curl."""
-    url = HF_BASE_URL.format(repo=model["hf_repo"], file=model["hf_file"])
-    print(c("cyan", f"[INFO] URL: {url}"))
-
+    # Fallback: descarga HTTP directa desde HuggingFace
+    url = HF_BASE_URL.format(repo=repo, file=filename)
+    print(c("cyan", f"[INFO] {filename}  ←  {url}"))
     if shutil.which("wget"):
         cmd = ["wget", "--progress=bar:force", "-O", str(dest), url]
     elif shutil.which("curl"):
@@ -132,19 +131,7 @@ def download_with_http(model: dict, dest: Path) -> bool:
     return result.returncode == 0 and dest.exists()
 
 
-def download_model(model: dict) -> None:
-    dest_dir = MODELS_BASE / model["dest_dir"]
-    dest     = dest_dir / model["hf_file"]
-
-    existing = already_downloaded(model)
-    if existing:
-        print(c("yellow", f"[SKIP]  El modelo ya existe: {existing}"))
-        return
-
-    print(c("bold", f"\n[INFO] Descargando: {model['name']}"))
-    print(c("dim",  f"       Destino: {dest}"))
-
-    # Necesita sudo para crear /srv/models si no existe
+def ensure_dest_dir(dest_dir: Path) -> None:
     if not dest_dir.exists():
         print(c("cyan", f"[INFO] Creando directorio: {dest_dir}"))
         try:
@@ -153,18 +140,39 @@ def download_model(model: dict) -> None:
             subprocess.run(["sudo", "mkdir", "-p", str(dest_dir)], check=True)
             subprocess.run(["sudo", "chmod", "777", str(dest_dir)], check=True)
 
-    # Intentar con llama-cli primero, luego fallback HTTP
-    success = download_with_llama_cli(model, dest) or download_with_http(model, dest)
 
-    if success:
-        print(c("green", f"\n[OK]   Modelo descargado: {dest}"))
-        size_mb = dest.stat().st_size / (1024 * 1024)
-        print(c("dim",   f"       Tamaño: {size_mb:.0f} MB"))
+def download_model(model: dict) -> None:
+    dest_dir = MODELS_BASE / model["dest_dir"]
+    ensure_dest_dir(dest_dir)
+
+    # Archivo principal
+    existing = already_downloaded(model)
+    if existing:
+        print(c("yellow", f"[SKIP]  Modelo principal ya existe: {existing}"))
     else:
-        print(c("red", f"\n[ERROR] Falló la descarga de {model['hf_file']}"))
-        if dest.exists():
-            dest.unlink()
-        sys.exit(1)
+        print(c("bold", f"\n[INFO] Descargando: {model['name']}"))
+        dest = dest_dir / model["hf_file"]
+        if not download_file(model["hf_repo"], model["hf_file"], dest):
+            print(c("red", f"[ERROR] Falló la descarga de {model['hf_file']}"))
+            if dest.exists():
+                dest.unlink()
+            sys.exit(1)
+        size_mb = dest.stat().st_size / (1024 * 1024)
+        print(c("green", f"[OK]   {dest.name}  ({size_mb:.0f} MB)"))
+
+    # Archivos extra (ej: mmproj para multimodal)
+    for extra in extra_files(model):
+        dest_extra = dest_dir / extra
+        print(c("bold", f"\n[INFO] Archivo extra requerido: {extra}"))
+        if not download_file(model["hf_repo"], extra, dest_extra):
+            print(c("red", f"[ERROR] Falló la descarga de {extra}"))
+            if dest_extra.exists():
+                dest_extra.unlink()
+            sys.exit(1)
+        size_mb = dest_extra.stat().st_size / (1024 * 1024)
+        print(c("green", f"[OK]   {dest_extra.name}  ({size_mb:.0f} MB)"))
+
+    print(c("green", f"\n[OK]   Descarga completa en {dest_dir}"))
 
 
 def interactive_menu(models: list[dict]) -> dict:
