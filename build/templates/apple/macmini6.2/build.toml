@@ -40,13 +40,18 @@ apt_packages = [
 ]
 
 # Flags cmake: cada entrada genera -DKEY=VALUE
+#
+# NOTA: Perfil en modo SSE4.2-only (baseline seguro).
+# AVX deshabilitado para diagnóstico de SIGILL. Una vez confirmado que
+# funciona, re-habilitar AVX/F16C incrementalmente con los resultados
+# del CMakeCache.txt y objdump.
 [cmake.flags]
 BUILD_SHARED_LIBS    = "OFF"
 GGML_BLAS            = "ON"
 GGML_BLAS_VENDOR     = "OpenBLAS"
-GGML_AVX             = "ON"
+GGML_AVX             = "OFF"
 GGML_AVX2            = "OFF"
-GGML_F16C            = "ON"
+GGML_F16C            = "OFF"
 GGML_FMA             = "OFF"
 GGML_METAL           = "OFF"
 GGML_NATIVE          = "OFF"
@@ -54,12 +59,9 @@ LLAMA_BUILD_TESTS    = "OFF"
 LLAMA_BUILD_EXAMPLES = "ON"
 
 # Flags del compilador C y C++
-# -mno-avx2 -mno-fma: seguro a nivel de compilador. En versiones recientes de
-# llama.cpp el cmake de ggml puede ignorar GGML_AVX2=OFF / GGML_FMA=OFF si
-# cambió el nombre interno del flag. Con -mno-* el compilador rechaza generar
-# esas instrucciones en build-time, convirtiendo un SIGILL silencioso en runtime
-# en un error explícito de compilación.
+# Sin flags AVX: si cmake ignora los GGML_* y añade -mavx internamente,
+# -mno-avx fuerza al compilador a rechazarlo en build-time.
 [compiler]
 march  = "ivybridge"
 mtune  = "ivybridge"
-cflags = "-O3 -ffast-math -fno-finite-math-only -mno-avx2 -mno-fma"
+cflags = "-O3 -ffast-math -fno-finite-math-only -mno-avx -mno-avx2 -mno-fma -mno-f16c"
