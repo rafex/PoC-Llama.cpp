@@ -52,21 +52,29 @@ test-smoke:
 	$(call log_info,=== Prueba: smoke test de inferencia ===)
 	@model=$$(find $(MODELS_DIR)/gguf -name "*.gguf" 2>/dev/null | sort | head -1); \
 	if [ -z "$$model" ]; then \
-	  printf "$(YELLOW)[SKIP]$(RESET)  Sin modelos en $(MODELS_DIR)/gguf — descarga uno con 'huggingface-cli'\n"; \
+	  printf "$(YELLOW)[SKIP]$(RESET)  Sin modelos en $(MODELS_DIR)/gguf — descarga uno con 'just model-download-smart'\n"; \
 	  exit 0; \
 	fi; \
 	printf "$(CYAN)[INFO]$(RESET)  Usando modelo: $$model\n"; \
 	printf "$(CYAN)[INFO]$(RESET)  Generando 16 tokens de prueba...\n"; \
-	output=$$(echo "Hello" | llama-cli \
+	tmpout=$$(mktemp); \
+	llama-cli \
 	  -m "$$model" \
 	  -n 16 \
-	  --no-display-prompt \
+	  -p "Hello" \
 	  --log-disable \
-	  -p "Hello" 2>/dev/null | head -3 || true); \
-	if [ -n "$$output" ]; then \
+	  > "$$tmpout" 2>&1; \
+	rc=$$?; \
+	if [ $$rc -eq 0 ]; then \
+	  output=$$(grep -v '^\[' "$$tmpout" | grep -v '^$$' | head -3); \
+	  rm -f "$$tmpout"; \
 	  printf "$(GREEN)[PASS]$(RESET)  Inferencia exitosa:\n"; \
-	  echo "$$output" | sed 's/^/         /'; \
+	  if [ -n "$$output" ]; then \
+	    echo "$$output" | sed 's/^/         /'; \
+	  fi; \
 	else \
-	  printf "$(RED)[FAIL]$(RESET)  La inferencia no produjo output\n"; \
+	  printf "$(RED)[FAIL]$(RESET)  llama-cli falló (rc=$$rc). Salida:\n"; \
+	  head -20 "$$tmpout" | sed 's/^/         /'; \
+	  rm -f "$$tmpout"; \
 	  exit 1; \
 	fi
