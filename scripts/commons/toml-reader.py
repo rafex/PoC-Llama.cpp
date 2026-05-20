@@ -2,6 +2,14 @@
 """
 toml-reader.py — Lee un perfil build.toml y emite flags para cmake/shell/make/deps.
 
+Soporta herencia mediante la clave `inherits` en el build.toml:
+
+  inherits = "cpu/intel/ivybridge"
+
+La ruta es relativa al directorio raíz de templates (build/templates/).
+El perfil hijo sobreescribe valores del padre en caso de conflicto.
+Las secciones tipo dict ([cmake.flags], [compiler]) se fusionan en profundidad.
+
 Uso:
   python3 scripts/commons/toml-reader.py <perfil.toml> --format cmake
   python3 scripts/commons/toml-reader.py <perfil.toml> --format shell
@@ -12,6 +20,7 @@ Uso:
 
 import sys
 import argparse
+from pathlib import Path
 
 try:
     import tomllib  # Python 3.11+
@@ -24,9 +33,45 @@ except ModuleNotFoundError:
         )
 
 
-def load(path: str) -> dict:
+def _load_raw(path: str) -> dict:
     with open(path, "rb") as f:
         return tomllib.load(f)
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Fusiona override sobre base recursivamente. override gana en conflicto."""
+    result = dict(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def load(path: str) -> dict:
+    """Carga un perfil TOML resolviendo herencia con `inherits`."""
+    profile_path = Path(path).resolve()
+    data = _load_raw(str(profile_path))
+
+    inherits = data.pop("inherits", None)
+    if not inherits:
+        return data
+
+    # El raíz de templates está 2 niveles arriba de <vendor>/<model>/build.toml
+    # Estructura esperada: build/templates/<vendor>/<model>/build.toml
+    templates_root = profile_path.parents[2]
+    cpu_path = templates_root / f"{inherits}.toml"
+
+    if not cpu_path.exists():
+        sys.exit(
+            f"[ERROR] Perfil base no encontrado: {cpu_path}\n"
+            f"        Declarado en: {profile_path}\n"
+            f"        inherits = \"{inherits}\""
+        )
+
+    base = _load_raw(str(cpu_path))
+    return _deep_merge(base, data)
 
 
 def cmake_flags(data: dict) -> str:

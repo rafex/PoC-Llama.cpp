@@ -1,0 +1,73 @@
+# =============================================================================
+# Perfil de CPU: Intel Ivy Bridge (3ª generación)
+#
+# Aplicable a:
+#   Core i7-3xxxQM / i5-3xxxM / i3-3xxxM
+#   Xeon E3-12xx v2
+#
+# Extensiones verificadas (/proc/cpuinfo):
+#   SSE4.1, SSE4.2, AVX, F16C  — SÍ
+#   AVX2, FMA3, BMI1, BMI2     — NO (pre-Haswell)
+#   AVX-512                    — NO
+#
+# Equipos conocidos con este procesador:
+#   Apple Mac mini 6,2 (i7-3615QM)
+# =============================================================================
+
+[cpu]
+name    = "Intel Ivy Bridge"
+vendor  = "intel"
+arch    = "ivybridge"
+gen     = "3rd"
+
+# Extensiones SIMD soportadas
+sse41  = true
+sse42  = true
+avx    = true
+f16c   = true
+
+# Extensiones NO soportadas (Haswell+)
+avx2   = false
+fma3   = false
+bmi1   = false
+bmi2   = false
+avx512 = false
+
+# =============================================================================
+# Configuración del compilador
+# =============================================================================
+
+[compiler]
+march = "ivybridge"
+mtune = "ivybridge"
+
+# Baseline SSE4.2-only.
+#
+# Por qué -mno-avx si Ivy Bridge SÍ tiene AVX:
+#   Cuando GGML_AVX=ON, ggml cmake añade flags de extensiones relacionadas
+#   (FMA, F16C, BMI2) asumiendo que van juntas. Ivy Bridge tiene AVX y F16C
+#   pero NO FMA3 ni BMI2, lo que genera SIGILL. Es más seguro desactivar AVX
+#   en cmake y dejarlo en OFF hasta tener un perfil validado.
+#
+# Por qué -mno-bmi -mno-bmi2 si cmake tiene GGML_BMI2=OFF:
+#   Segunda barrera de defensa. GGML usa target_compile_options() que se
+#   aplica DESPUÉS de CMAKE_C_FLAGS. Si algún path de cmake re-activa BMI2,
+#   el compilador lo rechaza en build-time. Ver ADR-005.
+cflags = "-O3 -ffast-math -fno-finite-math-only -mno-avx -mno-avx2 -mno-fma -mno-f16c -mno-bmi -mno-bmi2"
+
+# =============================================================================
+# Flags cmake de extensiones CPU
+# Estos flags controlan qué código SIMD compila ggml.
+# Los flags de hardware (BLAS, METAL, etc.) van en el build.toml del equipo.
+# =============================================================================
+
+[cmake.flags]
+# GGML_BMI2=OFF es crítico: ggml-cpu/CMakeLists.txt lo tiene en ON por defecto
+# y lo inyecta vía target_compile_options() pisando CMAKE_C_FLAGS.
+# Ver docs/architecture/decisions.md ADR-005 y docs/troubleshooting/common-issues.md
+GGML_AVX    = "OFF"
+GGML_AVX2   = "OFF"
+GGML_BMI2   = "OFF"
+GGML_F16C   = "OFF"
+GGML_FMA    = "OFF"
+GGML_NATIVE = "OFF"

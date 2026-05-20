@@ -5,10 +5,15 @@
 #   sudo dmidecode -t system   → Macmini6,2 / Apple Inc.
 #   lscpu                      → Intel Core i7-3615QM (Ivy Bridge, 4C/8T)
 #
-# Capacidades CPU relevantes (de /proc/cpuinfo flags, verificado en producción):
-#   SSE4.1, SSE4.2, AVX, F16C — SÍ
-#   AVX2, FMA3, AVX-512        — NO (Ivy Bridge es pre-Haswell)
+# La configuración del procesador (march, mtune, cflags, GGML_AVX, GGML_BMI2...)
+# se hereda de:
+#   build/templates/cpu/intel/ivybridge.toml
+#
+# Este archivo solo contiene lo específico del equipo:
+#   hardware, jobs, dependencias y flags de hardware (BLAS, METAL...).
 # =============================================================================
+
+inherits = "cpu/intel/ivybridge"
 
 [hardware]
 manufacturer   = "Apple Inc."
@@ -39,31 +44,12 @@ apt_packages = [
   "pkg-config",
 ]
 
-# Flags cmake: cada entrada genera -DKEY=VALUE
-#
-# NOTA: Perfil SSE4.2-only — Ivy Bridge no tiene BMI2, AVX2, FMA3.
-# GGML_BMI2=OFF es crítico: ggml/src/ggml-cpu/CMakeLists.txt añade
-# -mbmi2 vía target_compile_options() cuando GGML_BMI2=ON (su default),
-# lo que sobreescribe CMAKE_C_FLAGS y genera SHLX → SIGILL en Ivy Bridge.
-# GGML_AVX=OFF también previene paths de código que asumen BMI2.
+# Flags cmake específicos del hardware.
+# Los flags de CPU (GGML_AVX, GGML_BMI2, compiler.*) vienen de ivybridge.toml.
 [cmake.flags]
 BUILD_SHARED_LIBS    = "OFF"
 GGML_BLAS            = "ON"
 GGML_BLAS_VENDOR     = "OpenBLAS"
-GGML_AVX             = "OFF"
-GGML_AVX2            = "OFF"
-GGML_BMI2            = "OFF"
-GGML_F16C            = "OFF"
-GGML_FMA             = "OFF"
 GGML_METAL           = "OFF"
-GGML_NATIVE          = "OFF"
 LLAMA_BUILD_TESTS    = "OFF"
 LLAMA_BUILD_EXAMPLES = "ON"
-
-# Flags del compilador C y C++
-# Sin flags AVX: si cmake ignora los GGML_* y añade -mavx internamente,
-# -mno-avx fuerza al compilador a rechazarlo en build-time.
-[compiler]
-march  = "ivybridge"
-mtune  = "ivybridge"
-cflags = "-O3 -ffast-math -fno-finite-math-only -mno-avx -mno-avx2 -mno-fma -mno-f16c -mno-bmi -mno-bmi2"
