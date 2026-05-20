@@ -78,11 +78,13 @@ def print_catalog(models: list[dict]) -> None:
             print(f"\n  {c('bold', label)}")
             print(f"  {'─' * 60}")
 
-        ram   = f"{m['ram_gb']} GB RAM"
-        size  = f"~{m['size_gb']} GB"
-        mid = m["id"]
+        ram        = f"{m['ram_gb']} GB RAM"
+        size       = f"~{m['size_gb']} GB"
+        mid        = m["id"]
+        badge      = c("green", " ✓ instalado") if already_downloaded(m) else ""
+        name_line  = f"{c('bold', m['name'])}{badge}"
         print(
-            f"  {c('cyan', f'[{i:2d}]')} {c('bold', m['name'])}\n"
+            f"  {c('cyan', f'[{i:2d}]')} {name_line}\n"
             f"       {c('dim', m['description'])}\n"
             f"       {c('dim', f'{size}  ·  {ram}  ·  id: {mid}')}",
         )

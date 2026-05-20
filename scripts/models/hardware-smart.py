@@ -35,6 +35,7 @@ except ModuleNotFoundError:
         sys.exit("[ERROR] Se requiere Python 3.11+ o: pip install tomli")
 
 CATALOG_PATH = Path(__file__).parent.parent.parent / "build/models/catalog.toml"
+MODELS_BASE  = Path("/srv/models")
 
 COLORS = {
     "reset":  "\033[0m",
@@ -252,6 +253,12 @@ def install_tools(tools: List[dict]) -> None:
 # Clasificación y presentación
 # =============================================================================
 
+def is_downloaded(model: dict) -> bool:
+    """Devuelve True si el archivo principal del modelo ya existe en /srv/models."""
+    dest = MODELS_BASE / model["dest_dir"] / model["hf_file"]
+    return dest.exists()
+
+
 def classify(model: dict, total_ram_gb: float) -> str:
     needed = model.get("ram_gb", 0)
     if needed == 0:
@@ -310,11 +317,14 @@ def print_smart_catalog(models: List[dict], total_ram_gb: float) -> None:
                 current_type = m["type"]
                 print(f"\n    {c('dim', TYPE_LABELS.get(current_type, current_type))}")
 
-            mid  = m["id"]
-            ram  = f"{m['ram_gb']} GB RAM"
-            size = f"~{m['size_gb']} GB"
+            mid        = m["id"]
+            ram        = f"{m['ram_gb']} GB RAM"
+            size       = f"~{m['size_gb']} GB"
+            downloaded = is_downloaded(m)
+            badge      = c("green", " ✓ instalado") if downloaded else ""
+            name_line  = f"{c('bold', m['name'])}{badge}"
             print(
-                f"    {c('bold', m['name'])}\n"
+                f"    {name_line}\n"
                 f"      {c('dim', m['description'])}\n"
                 f"      {c('dim', f'{size}  ·  {ram}  ·  id: {mid}')}",
             )
@@ -344,11 +354,14 @@ def print_numbered_catalog(models: List[dict], total_ram_gb: float) -> dict:
                 current_type = m["type"]
                 print(f"\n    {c('dim', TYPE_LABELS.get(current_type, current_type))}")
 
-            num_color = "red" if tier == "excede" else "cyan"
-            ram  = f"{m['ram_gb']} GB RAM"
-            size = f"~{m['size_gb']} GB"
+            num_color  = "red" if tier == "excede" else "cyan"
+            ram        = f"{m['ram_gb']} GB RAM"
+            size       = f"~{m['size_gb']} GB"
+            downloaded = is_downloaded(m)
+            badge      = c("green", " ✓ instalado") if downloaded else ""
+            name_line  = f"{c('bold', m['name'])}{badge}"
             print(
-                f"    {c(num_color, f'[{n:2d}]')} {c('bold', m['name'])}\n"
+                f"    {c(num_color, f'[{n:2d}]')} {name_line}\n"
                 f"           {c('dim', m['description'])}\n"
                 f"           {c('dim', f'{size}  ·  {ram}')}",
             )
