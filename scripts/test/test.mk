@@ -11,7 +11,12 @@
 
 .PHONY: test test-binaries test-versions test-smoke
 
-TEST_BINARIES := llama-cli llama-server llama-bench llama-embedding
+# Binarios a verificar en el test suite
+# Núcleo + multimodal: se testean con --version
+TEST_BINARIES := llama-cli llama-server llama-bench llama-embedding llama-mtmd-cli
+# Herramientas GGUF y diagnóstico: solo se verifica que existan y sean ejecutables
+TEST_BINARIES_TOOLS := llama-quantize llama-gguf llama-gguf-split llama-gguf-hash \
+                       llama-tokenize llama-imatrix
 
 ## Suite completa de pruebas
 test: test-binaries test-versions
@@ -21,7 +26,7 @@ test: test-binaries test-versions
 test-binaries:
 	$(call log_info,=== Prueba: binarios instalados ===)
 	@failed=0; \
-	for bin in $(TEST_BINARIES); do \
+	for bin in $(TEST_BINARIES) $(TEST_BINARIES_TOOLS); do \
 	  path="$(SYMLINK_BIN)/$$bin"; \
 	  if [ -L "$$path" ] && [ -x "$$(readlink -f $$path)" ]; then \
 	    printf "$(GREEN)[PASS]$(RESET)  $$bin → $$(readlink -f $$path)\n"; \

@@ -5,7 +5,23 @@
 
 .PHONY: install install-binaries install-models-dir install-symlinks install-check
 
-LLAMA_BINARIES := llama-cli llama-server llama-bench llama-embedding llama-run
+# Núcleo: inferencia, servidor, benchmarks
+LLAMA_BINARIES_CORE := llama-cli llama-server llama-bench llama-embedding
+
+# Multimodal: CLI unificado (imágenes + texto)
+LLAMA_BINARIES_MULTIMODAL := llama-mtmd-cli
+
+# Gestión de modelos GGUF: cuantizar, inspeccionar, partir, verificar
+LLAMA_BINARIES_GGUF := llama-quantize llama-gguf llama-gguf-split llama-gguf-hash
+
+# Diagnóstico: tokenización, importance matrix para re-cuantización
+LLAMA_BINARIES_DIAG := llama-tokenize llama-imatrix
+
+# Lista completa (usada por install-binaries, install-symlinks, install-check)
+LLAMA_BINARIES := $(LLAMA_BINARIES_CORE) \
+                  $(LLAMA_BINARIES_MULTIMODAL) \
+                  $(LLAMA_BINARIES_GGUF) \
+                  $(LLAMA_BINARIES_DIAG)
 
 ## Instala binarios compilados en la versión activa
 install: install-sudo-check install-binaries install-models-dir install-symlinks install-check
