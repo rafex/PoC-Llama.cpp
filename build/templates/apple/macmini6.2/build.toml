@@ -6,8 +6,9 @@
 #   lscpu                      → Intel Core i7-3615QM (Ivy Bridge, 4C/8T)
 #
 # Capacidades CPU relevantes (de /proc/cpuinfo flags):
-#   SSE4.1, SSE4.2, AVX, F16C — SÍ
-#   AVX2, FMA3, AVX-512        — NO (Ivy Bridge es pre-Haswell)
+#   SSE4.1, SSE4.2, AVX — SÍ (confirmado)
+#   F16C                — DESHABILITADO: no presente en VMs sobre este hardware
+#   AVX2, FMA3, AVX-512 — NO (Ivy Bridge es pre-Haswell)
 # =============================================================================
 
 [hardware]
@@ -45,7 +46,7 @@ GGML_BLAS        = "ON"
 GGML_BLAS_VENDOR = "OpenBLAS"
 GGML_AVX         = "ON"
 GGML_AVX2        = "OFF"
-GGML_F16C        = "ON"
+GGML_F16C        = "OFF"
 GGML_FMA         = "OFF"
 GGML_METAL       = "OFF"
 GGML_NATIVE      = "OFF"
@@ -53,7 +54,10 @@ LLAMA_BUILD_TESTS    = "OFF"
 LLAMA_BUILD_EXAMPLES = "ON"
 
 # Flags del compilador C y C++
+# -mno-* como seguro a nivel de compilador: aunque cmake habilite una feature,
+# el compilador rechazará generar esas instrucciones y fallará en build-time
+# en lugar de producir un binario que falla en runtime con SIGILL.
 [compiler]
 march  = "ivybridge"
 mtune  = "ivybridge"
-cflags = "-O3 -ffast-math -fno-finite-math-only"
+cflags = "-O3 -ffast-math -fno-finite-math-only -mno-avx2 -mno-fma -mno-f16c"
