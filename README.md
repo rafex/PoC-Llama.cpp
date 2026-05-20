@@ -21,11 +21,17 @@ make profile-list
 # Setup completo con perfil (verifica e instala deps, compila, instala)
 just setup-profile apple/macmini6.2
 
-# Iniciar servidor con un modelo
-just run /srv/models/gguf/mi-modelo.gguf
+# Descargar un modelo desde el catálogo curado (menú interactivo)
+just model-download
 
-# Chat interactivo
-just chat /srv/models/gguf/mi-modelo.gguf
+# Descargar directamente por ID
+just model-download-id qwen2.5-1.5b-chat-q4
+
+# Iniciar servidor con un modelo (API compatible con OpenAI)
+just run /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf 8080
+
+# Chat interactivo en terminal
+just chat /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
 
 # Ver todas las recetas disponibles
 just

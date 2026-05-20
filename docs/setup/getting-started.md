@@ -61,17 +61,25 @@ just setup-profile apple/macmini6.2
 ## Descargar un modelo
 
 ```bash
-# Instalar huggingface-cli
-pip install huggingface-hub
+# Menú interactivo: lista el catálogo y descarga el modelo elegido
+just model-download
 
-# Modelo pequeño de Qwen (~1 GB)
-huggingface-cli download Qwen/Qwen2.5-1.5B-Instruct-GGUF \
-  qwen2.5-1.5b-instruct-q4_k_m.gguf \
-  --local-dir /srv/models/gguf/
+# Filtrar por tipo antes del menú
+just model-download-type chat
+just model-download-type multimodal
 
-# Ver modelos disponibles
+# Descargar directamente por ID (sin menú interactivo)
+just model-download-id qwen2.5-1.5b-chat-q4
+
+# Ver todos los modelos del catálogo
+just model-list
+
+# Ver modelos ya descargados en /srv/models
 just models
 ```
+
+Los modelos se guardan en `/srv/models/{gguf,embeddings,multimodal}/`
+según su tipo. El catálogo completo está en `build/models/catalog.toml`.
 
 ## Usar los modelos
 
