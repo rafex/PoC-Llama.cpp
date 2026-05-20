@@ -14,7 +14,15 @@ model-list-smart:
 model-list-smart-type type:
     python3 scripts/models/hardware-smart.py --type {{type}}
 
-# Menú interactivo para elegir y descargar un modelo
+# Detecta hardware, clasifica modelos y descarga el elegido (menú interactivo inteligente)
+model-download-smart:
+    python3 scripts/models/hardware-smart.py --download
+
+# Detecta hardware, filtra por tipo y descarga (ej: just model-download-smart-type chat)
+model-download-smart-type type:
+    python3 scripts/models/hardware-smart.py --download --type {{type}}
+
+# Menú interactivo simple (sin clasificación de hardware)
 model-download:
     python3 scripts/models/model-download.py
 

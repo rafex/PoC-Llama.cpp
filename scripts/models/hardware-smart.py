@@ -11,9 +11,10 @@ Clasificación:
   ❌ Excede     — RAM total < ram_gb        (supera al hardware, no recomendado)
 
 Uso:
-  python3 scripts/models/hardware-smart.py
-  python3 scripts/models/hardware-smart.py --type chat
-  python3 scripts/models/hardware-smart.py --no-install
+  python3 scripts/models/hardware-smart.py                  # listar clasificados
+  python3 scripts/models/hardware-smart.py --download       # listar + menú de descarga
+  python3 scripts/models/hardware-smart.py --type chat      # filtrar por tipo
+  python3 scripts/models/hardware-smart.py --no-install     # omitir prompt de deps
 """
 
 import sys
@@ -319,6 +320,101 @@ def print_smart_catalog(models: List[dict], total_ram_gb: float) -> None:
             )
 
 
+def print_numbered_catalog(models: List[dict], total_ram_gb: float) -> dict:
+    """Imprime el catálogo numerado agrupado por tier. Devuelve {n: (model, tier)}."""
+    buckets: dict = {"eficiente": [], "suficiente": [], "excede": []}
+    for m in models:
+        buckets[classify(m, total_ram_gb)].append(m)
+
+    index: dict = {}
+    n = 1
+
+    for tier in ("eficiente", "suficiente", "excede"):
+        tier_models = buckets[tier]
+        if not tier_models:
+            continue
+
+        icon, color, label = TIER_CONFIG[tier]
+        print(f"\n  {c(color, f'{icon}  {label}')}")
+        print(f"  {'─' * 65}")
+
+        current_type = None
+        for m in tier_models:
+            if m["type"] != current_type:
+                current_type = m["type"]
+                print(f"\n    {c('dim', TYPE_LABELS.get(current_type, current_type))}")
+
+            num_color = "red" if tier == "excede" else "cyan"
+            ram  = f"{m['ram_gb']} GB RAM"
+            size = f"~{m['size_gb']} GB"
+            print(
+                f"    {c(num_color, f'[{n:2d}]')} {c('bold', m['name'])}\n"
+                f"           {c('dim', m['description'])}\n"
+                f"           {c('dim', f'{size}  ·  {ram}')}",
+            )
+            index[n] = (m, tier)
+            n += 1
+
+    return index
+
+
+def interactive_download_menu(models: List[dict], total_ram_gb: float) -> None:
+    """Muestra catálogo numerado por tier y ejecuta la descarga del modelo elegido."""
+    print(c("bold", f"\n  Modelos disponibles para {total_ram_gb} GB de RAM"))
+    index = print_numbered_catalog(models, total_ram_gb)
+
+    total = len(index)
+    print(f"\n  {c('dim', '─' * 65)}")
+    print(c("dim", "  Los modelos ❌ superan el hardware — se pueden descargar con confirmación."))
+    print()
+
+    while True:
+        try:
+            raw = input(c("bold", f"  Número a descargar [1-{total}] (q para salir): ")).strip()
+        except (KeyboardInterrupt, EOFError):
+            print()
+            sys.exit(0)
+
+        if raw.lower() in ("q", "exit", "quit"):
+            sys.exit(0)
+
+        try:
+            idx = int(raw)
+        except ValueError:
+            print(c("yellow", "  Ingresa un número o 'q' para salir."))
+            continue
+
+        if idx not in index:
+            print(c("yellow", f"  Número inválido. Elige entre 1 y {total}."))
+            continue
+
+        model, tier = index[idx]
+
+        if tier == "excede":
+            needed = model.get("ram_gb", 0)
+            print(c("yellow",
+                    f"\n  ⚠️  Este modelo requiere {needed} GB de RAM "
+                    f"y el equipo tiene {total_ram_gb} GB."))
+            try:
+                confirm = input(c("bold", "  ¿Descargar de todas formas? [s/N]: ")).strip().lower()
+                print()
+            except (KeyboardInterrupt, EOFError):
+                print()
+                sys.exit(0)
+            if confirm not in ("s", "si", "sí", "y", "yes"):
+                continue
+
+        launch_download(model)
+        return
+
+
+def launch_download(model: dict) -> None:
+    """Delega la descarga a model-download.py --id <id> (reutiliza toda su lógica)."""
+    script = Path(__file__).parent / "model-download.py"
+    result = subprocess.run([sys.executable, str(script), "--id", model["id"]])
+    sys.exit(result.returncode)
+
+
 def print_summary(models: List[dict], total_ram_gb: float, disk_free: Optional[float]) -> None:
     counts: dict = {"eficiente": 0, "suficiente": 0, "excede": 0}
     for m in models:
@@ -338,8 +434,8 @@ def print_summary(models: List[dict], total_ram_gb: float, disk_free: Optional[f
         print(f"  Tamaño total modelos eficientes: ~{total_size:.1f} GB{disk_info}")
 
     print()
-    print(c("dim", "  Descarga con:  just model-download-id <id>"))
-    print(c("dim", "  Ver catálogo:  just model-list"))
+    print(c("dim", "  Descargar con menú inteligente:  just model-download-smart"))
+    print(c("dim", "  Descargar por ID directamente:   just model-download-id <id>"))
     print()
 
 
@@ -354,6 +450,10 @@ def main() -> None:
     parser.add_argument(
         "--type", choices=["chat", "coding", "embedding", "multimodal"],
         help="Filtrar por tipo de modelo",
+    )
+    parser.add_argument(
+        "--download", action="store_true",
+        help="Mostrar menú interactivo para elegir y descargar un modelo",
     )
     parser.add_argument(
         "--no-install", action="store_true",
@@ -393,7 +493,12 @@ def main() -> None:
         print(c("yellow", "\n  Sin modelos para ese filtro."))
         sys.exit(0)
 
-    # 5. Catálogo clasificado ───────────────────────────────────────────────
+    # 5a. Modo descarga — menú numerado interactivo ────────────────────────
+    if args.download:
+        interactive_download_menu(models, total_ram)
+        return
+
+    # 5b. Modo lista — catálogo clasificado sin números ────────────────────
     type_label = f" [{args.type}]" if args.type else ""
     print(c("bold", f"\n  Modelos clasificados para {total_ram} GB de RAM{type_label}"))
     print_smart_catalog(models, total_ram)

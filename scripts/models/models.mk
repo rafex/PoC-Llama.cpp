@@ -3,7 +3,7 @@
 # Incluido por el Makefile raíz.
 # =============================================================================
 
-.PHONY: model-list model-list-smart model-download model-download-id
+.PHONY: model-list model-list-smart model-download model-download-smart model-download-id
 
 MODEL_DOWNLOAD    := scripts/models/model-download.py
 HARDWARE_SMART    := scripts/models/hardware-smart.py
@@ -23,7 +23,18 @@ ifndef TYPE
 endif
 	@python3 $(HARDWARE_SMART) --type $(TYPE)
 
-## Menú interactivo para descargar un modelo
+## Detecta hardware, clasifica y descarga el modelo elegido (menú inteligente)
+model-download-smart:
+	@python3 $(HARDWARE_SMART) --download
+
+## Filtra por tipo y descarga: make model-download-smart-type TYPE=chat
+model-download-smart-type:
+ifndef TYPE
+	$(error Especifica TYPE=chat|coding|embedding|multimodal)
+endif
+	@python3 $(HARDWARE_SMART) --download --type $(TYPE)
+
+## Menú interactivo simple (sin clasificación de hardware)
 model-download:
 	@python3 $(MODEL_DOWNLOAD)
 
