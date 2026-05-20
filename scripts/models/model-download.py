@@ -140,6 +140,11 @@ def ensure_dest_dir(dest_dir: Path) -> None:
             subprocess.run(["sudo", "mkdir", "-p", str(dest_dir)], check=True)
             subprocess.run(["sudo", "chmod", "777", str(dest_dir)], check=True)
 
+    # El directorio existe pero el usuario actual no tiene permisos de escritura
+    if not os.access(dest_dir, os.W_OK):
+        print(c("cyan", f"[INFO] Ajustando permisos de escritura: {dest_dir}"))
+        subprocess.run(["sudo", "chmod", "777", str(dest_dir)], check=True)
+
 
 def download_model(model: dict) -> None:
     dest_dir = MODELS_BASE / model["dest_dir"]
