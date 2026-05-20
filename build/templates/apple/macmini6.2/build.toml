@@ -41,14 +41,15 @@ apt_packages = [
 
 # Flags cmake: cada entrada genera -DKEY=VALUE
 [cmake.flags]
-GGML_BLAS        = "ON"
-GGML_BLAS_VENDOR = "OpenBLAS"
-GGML_AVX         = "ON"
-GGML_AVX2        = "OFF"
-GGML_F16C        = "ON"
-GGML_FMA         = "OFF"
-GGML_METAL       = "OFF"
-GGML_NATIVE      = "OFF"
+BUILD_SHARED_LIBS    = "OFF"
+GGML_BLAS            = "ON"
+GGML_BLAS_VENDOR     = "OpenBLAS"
+GGML_AVX             = "ON"
+GGML_AVX2            = "OFF"
+GGML_F16C            = "ON"
+GGML_FMA             = "OFF"
+GGML_METAL           = "OFF"
+GGML_NATIVE          = "OFF"
 LLAMA_BUILD_TESTS    = "OFF"
 LLAMA_BUILD_EXAMPLES = "ON"
 
