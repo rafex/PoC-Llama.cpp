@@ -6,6 +6,14 @@
 model-list:
     python3 scripts/models/model-download.py --list
 
+# Detecta hardware y clasifica qué modelos soporta el equipo (Eficiente / Suficiente / Excede)
+model-list-smart:
+    python3 scripts/models/hardware-smart.py
+
+# Detecta hardware y filtra por tipo (ej: just model-list-smart-type chat)
+model-list-smart-type type:
+    python3 scripts/models/hardware-smart.py --type {{type}}
+
 # Menú interactivo para elegir y descargar un modelo
 model-download:
     python3 scripts/models/model-download.py
