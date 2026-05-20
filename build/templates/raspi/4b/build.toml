@@ -1,0 +1,71 @@
+# =============================================================================
+# Perfil de compilación: Raspberry Pi 4 Model B
+#
+# Hardware identificado con:
+#   uname -a    → Linux ... aarch64 GNU/Linux
+#   lscpu       → ARM Cortex-A72, 4 cores @ 1500 MHz
+#   cat /proc/cpuinfo → Model: Raspberry Pi 4 Model B Rev 1.5
+#   vcgencmd version  → BCM2711 firmware
+#
+# La configuración del procesador (march, mtune, cflags, GGML_NEON...)
+# se hereda de:
+#   build/templates/cpu/arm/cortex-a72.toml
+#
+# Este archivo solo contiene lo específico del equipo:
+#   hardware, jobs, dependencias y flags de hardware (BLAS, aceleración...).
+#
+# Consideraciones de memoria:
+#   - Pi 4B disponible en 1 GB / 2 GB / 4 GB / 8 GB
+#   - Con 4 GB o más: jobs=4 es seguro
+#   - Con 2 GB: considerar jobs=2 para evitar OOM durante compilación
+#   - Con 1 GB: jobs=1 y añadir swap (sudo dphys-swapfile)
+#
+# Recomendaciones de modelos para este hardware:
+#   - Q4_K_M de ≤ 1.5B params (modelos pequeños)
+#   - Q8 de ≤ 1B params
+#   - Ver: just model-list-smart
+# =============================================================================
+
+inherits = "cpu/arm/cortex-a72"
+
+[hardware]
+manufacturer   = "Raspberry Pi Foundation"
+product        = "Raspberry Pi 4 Model B"
+cpu_model      = "ARM Cortex-A72 (BCM2711)"
+cpu_arch       = "aarch64"
+logical_cpus   = 4
+physical_cores = 4
+os             = "linux"
+
+[build]
+# Con 4 GB RAM: jobs=4 es seguro.
+# Reducir a 2 si hay OOM durante compilación (enlazado de llama-server es pesado).
+jobs      = 4
+type      = "Release"
+generator = "Unix Makefiles"
+
+[dependencies]
+# Binarios verificados con `command -v`
+commands = ["git", "cmake", "gcc", "g++", "pkg-config"]
+# Librerías verificadas con `pkg-config --exists`
+pkg_config = ["openblas", "openssl"]
+# Paquetes para instalar en Raspberry Pi OS (Debian bookworm/bullseye)
+apt_packages = [
+  "build-essential",
+  "cmake",
+  "git",
+  "libopenblas-dev",
+  "libssl-dev",
+  "pkg-config",
+]
+
+# Flags cmake específicos del hardware.
+# Los flags de CPU (GGML_NEON, GGML_SVE, GGML_NATIVE, compiler.*) vienen
+# de cpu/arm/cortex-a72.toml vía herencia.
+[cmake.flags]
+BUILD_SHARED_LIBS    = "OFF"
+GGML_BLAS            = "ON"
+GGML_BLAS_VENDOR     = "OpenBLAS"
+GGML_METAL           = "OFF"   # Solo disponible en Apple Silicon / macOS
+LLAMA_BUILD_TESTS    = "OFF"
+LLAMA_BUILD_EXAMPLES = "ON"
