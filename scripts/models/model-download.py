@@ -3,8 +3,7 @@
 model-download.py — Catálogo interactivo de modelos GGUF para llama.cpp
 
 Muestra el catálogo en build/models/catalog.toml, permite filtrar por tipo
-y descarga el modelo elegido usando llama-cli --hf-repo (nativo de llama.cpp)
-con fallback a wget/curl.
+y descarga el modelo elegido directamente desde HuggingFace con wget o curl.
 
 Uso:
   python3 scripts/models/model-download.py
@@ -100,38 +99,34 @@ def extra_files(model: dict) -> list[str]:
 
 
 def download_file(repo: str, filename: str, dest: Path) -> bool:
-    """Descarga un archivo individual: llama-cli primero, luego HTTP."""
+    """Descarga un archivo individual vía HTTP directo (wget o curl).
+
+    Usa -c (wget) / -C - (curl) para reanudar descargas interrumpidas.
+    No usa llama-cli: ese comando carga el modelo en RAM antes de descargarlo.
+    """
     if dest.exists():
         print(c("yellow", f"[SKIP]  Ya existe: {dest.name}"))
         return True
 
-    # Intentar con llama-cli (si tiene soporte HuggingFace compilado)
-    if shutil.which("llama-cli"):
-        cmd = [
-            "llama-cli",
-            "--hf-repo", repo,
-            "--hf-file", filename,
-            "--no-warmup", "-n", "0",
-            "--model", str(dest),
-            "--log-disable",
-        ]
-        result = subprocess.run(cmd, capture_output=True)
-        if result.returncode == 0 and dest.exists():
-            return True
-
-    # Fallback: descarga HTTP directa desde HuggingFace
     url = HF_BASE_URL.format(repo=repo, file=filename)
     print(c("cyan", f"[INFO] {filename}  ←  {url}"))
+
     if shutil.which("wget"):
-        cmd = ["wget", "--progress=bar:force", "-O", str(dest), url]
+        cmd = ["wget", "--progress=bar:force", "-c", "-O", str(dest), url]
     elif shutil.which("curl"):
-        cmd = ["curl", "-L", "--progress-bar", "-o", str(dest), url]
+        cmd = ["curl", "-L", "--progress-bar", "-C", "-", "-o", str(dest), url]
     else:
         print(c("red", "[ERROR] Se necesita wget o curl para descargar."))
+        print(c("red", "        sudo apt-get install -y wget"))
         return False
 
     result = subprocess.run(cmd)
-    return result.returncode == 0 and dest.exists()
+    if result.returncode != 0 or not dest.exists():
+        # Limpiar archivo parcial si la descarga falló
+        if dest.exists():
+            dest.unlink()
+        return False
+    return True
 
 
 def current_user() -> str:
@@ -172,8 +167,6 @@ def download_model(model: dict) -> None:
         dest = dest_dir / model["hf_file"]
         if not download_file(model["hf_repo"], model["hf_file"], dest):
             print(c("red", f"[ERROR] Falló la descarga de {model['hf_file']}"))
-            if dest.exists():
-                dest.unlink()
             sys.exit(1)
         size_mb = dest.stat().st_size / (1024 * 1024)
         print(c("green", f"[OK]   {dest.name}  ({size_mb:.0f} MB)"))
@@ -184,8 +177,6 @@ def download_model(model: dict) -> None:
         print(c("bold", f"\n[INFO] Archivo extra requerido: {extra}"))
         if not download_file(model["hf_repo"], extra, dest_extra):
             print(c("red", f"[ERROR] Falló la descarga de {extra}"))
-            if dest_extra.exists():
-                dest_extra.unlink()
             sys.exit(1)
         size_mb = dest_extra.stat().st_size / (1024 * 1024)
         print(c("green", f"[OK]   {dest_extra.name}  ({size_mb:.0f} MB)"))
