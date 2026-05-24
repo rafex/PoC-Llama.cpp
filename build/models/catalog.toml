@@ -122,6 +122,17 @@ description = "Meta Llama 3.2, versión 3B. Buena calidad general."
 # -----------------------------------------------------------------------------
 
 [[models]]
+id          = "qwen2.5-coder-0.5b-q4"
+name        = "Qwen 2.5 Coder 0.5B Instruct Q4_K_M"
+type        = "coding"
+hf_repo     = "Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF"
+hf_file     = "qwen2.5-coder-0.5b-instruct-q4_k_m.gguf"
+size_gb     = 0.4
+ram_gb      = 1
+dest_dir    = "gguf"
+description = "El más pequeño de la familia Coder. Ideal para Raspberry Pi y hardware con 1 GB de RAM."
+
+[[models]]
 id          = "qwen2.5-coder-1.5b-q4"
 name        = "Qwen 2.5 Coder 1.5B Instruct Q4_K_M"
 type        = "coding"
