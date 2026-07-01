@@ -37,7 +37,7 @@ clone:
 	else \
 	  tag=$${LLAMA_TAG:-$$(python3 $(FETCH_LATEST_TAG))}; \
 	  printf "$(CYAN)[INFO]$(RESET)  Clonando llama.cpp @ $$tag ...\n"; \
-	  git clone --depth=1 --branch "$$tag" $(LLAMA_REPO_URL) $(LLAMA_SRC_DIR) && \
+	  git clone --depth=1 --branch "$$tag" -c advice.detachedHead=false $(LLAMA_REPO_URL) $(LLAMA_SRC_DIR) && \
 	  printf "$(GREEN)[OK]$(RESET)    Repositorio clonado: llama.cpp $$tag\n"; \
 	fi
 
@@ -56,7 +56,7 @@ update:
 	  else \
 	    printf "$(CYAN)[INFO]$(RESET)  Actualizando $$current → $$latest ...\n"; \
 	    rm -rf $(LLAMA_SRC_DIR) $(LLAMA_BUILD_DIR); \
-	    git clone --depth=1 --branch "$$latest" $(LLAMA_REPO_URL) $(LLAMA_SRC_DIR) && \
+	    git clone --depth=1 --branch "$$latest" -c advice.detachedHead=false $(LLAMA_REPO_URL) $(LLAMA_SRC_DIR) && \
 	    printf "$(GREEN)[OK]$(RESET)    Actualizado a $$latest\n"; \
 	    printf "$(CYAN)[INFO]$(RESET)  Ejecuta ahora: make compile PROFILE=<tu-perfil>\n"; \
 	  fi; \
