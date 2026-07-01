@@ -34,7 +34,8 @@ include scripts/uninstall/uninstall.mk
 help:
 	@printf "\n$(BOLD)PoC-Llama.cpp — Makefile$(RESET)\n\n"
 	@printf "$(CYAN)Build y construcción$(RESET)\n"
-	@printf "  %-28s %s\n" "clone"            "Clona repositorio llama.cpp en build/"
+	@printf "  %-28s %s\n" "clone"            "Clona llama.cpp en la última release (o LLAMA_TAG=bXXXX)"
+	@printf "  %-28s %s\n" "update"           "Actualiza el repo clonado a la última release"
 	@printf "  %-28s %s\n" "configure"        "Configura cmake con flags de plataforma"
 	@printf "  %-28s %s\n" "compile"          "Compila llama.cpp"
 	@printf "  %-28s %s\n" "build-clean"      "Limpia artefactos cmake (mantiene repo)"

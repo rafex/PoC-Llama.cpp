@@ -11,8 +11,9 @@
 #   make compile PROFILE=apple/macmini6.2
 # =============================================================================
 
-TOML_READER    := scripts/commons/toml-reader.py
-TEMPLATES_DIR  := build/templates
+TOML_READER       := scripts/commons/toml-reader.py
+TEMPLATES_DIR     := build/templates
+FETCH_LATEST_TAG  := scripts/build/fetch-latest-tag.py
 
 ifdef PROFILE
   PROFILE_TOML        := $(TEMPLATES_DIR)/$(PROFILE)/build.toml
@@ -26,16 +27,39 @@ else
   ACTIVE_JOBS         := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 endif
 
-.PHONY: clone configure compile build-clean build-purge profile-info
+.PHONY: clone update configure compile build-clean build-purge profile-info
 
-## Clona el repositorio de llama.cpp en build/llama.cpp
+## Clona llama.cpp en la última release (o LLAMA_TAG=bXXXX para versión específica)
 clone:
-	$(call log_info,Clonando llama.cpp en $(LLAMA_SRC_DIR)...)
 	@if [ -d "$(LLAMA_SRC_DIR)/.git" ]; then \
-	  printf "$(YELLOW)[WARN]$(RESET)  El repositorio ya existe. Usa 'make build-clean' si quieres re-clonar.\n"; \
+	  printf "$(YELLOW)[WARN]$(RESET)  El repositorio ya existe en $(LLAMA_SRC_DIR).\n"; \
+	  printf "         Usa 'make update' para actualizar a la última release.\n"; \
 	else \
-	  git clone --depth=1 $(LLAMA_REPO_URL) $(LLAMA_SRC_DIR) && \
-	  printf "$(GREEN)[OK]$(RESET)    Repositorio clonado.\n"; \
+	  tag=$${LLAMA_TAG:-$$(python3 $(FETCH_LATEST_TAG))}; \
+	  printf "$(CYAN)[INFO]$(RESET)  Clonando llama.cpp @ $$tag ...\n"; \
+	  git clone --depth=1 --branch "$$tag" $(LLAMA_REPO_URL) $(LLAMA_SRC_DIR) && \
+	  printf "$(GREEN)[OK]$(RESET)    Repositorio clonado: llama.cpp $$tag\n"; \
+	fi
+
+## Actualiza el repo clonado a la última release (o LLAMA_TAG=bXXXX para versión específica)
+update:
+	@latest=$${LLAMA_TAG:-$$(python3 $(FETCH_LATEST_TAG))}; \
+	if [ ! -d "$(LLAMA_SRC_DIR)/.git" ]; then \
+	  printf "$(YELLOW)[WARN]$(RESET)  No hay repo clonado. Ejecutando clone...\n"; \
+	  tag=$$latest $(MAKE) clone LLAMA_TAG="$$latest"; \
+	else \
+	  current=$$(git -C $(LLAMA_SRC_DIR) describe --tags --abbrev=0 2>/dev/null || echo "desconocido"); \
+	  printf "$(CYAN)[INFO]$(RESET)  Local     : $$current\n"; \
+	  printf "$(CYAN)[INFO]$(RESET)  Disponible: $$latest\n"; \
+	  if [ "$$current" = "$$latest" ]; then \
+	    printf "$(GREEN)[OK]$(RESET)    Ya estás en la versión más reciente.\n"; \
+	  else \
+	    printf "$(CYAN)[INFO]$(RESET)  Actualizando $$current → $$latest ...\n"; \
+	    rm -rf $(LLAMA_SRC_DIR) $(LLAMA_BUILD_DIR); \
+	    git clone --depth=1 --branch "$$latest" $(LLAMA_REPO_URL) $(LLAMA_SRC_DIR) && \
+	    printf "$(GREEN)[OK]$(RESET)    Actualizado a $$latest\n"; \
+	    printf "$(CYAN)[INFO]$(RESET)  Ejecuta ahora: make compile PROFILE=<tu-perfil>\n"; \
+	  fi; \
 	fi
 
 ## Configura cmake con el perfil activo (PROFILE=... o detección automática)
