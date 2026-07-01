@@ -60,6 +60,7 @@ help:
 	@printf "  %-28s %s\n" "debug-cpu"        "Capacidades CPU detectadas"
 	@printf "  %-28s %s\n" "debug-binaries"   "Estado de binarios instalados"
 	@printf "  %-28s %s\n" "debug-models"     "Modelos disponibles en /srv/models"
+	@printf "  %-28s %s\n" "check-update"     "Compara versión local vs última release de llama.cpp"
 	@printf "\n$(CYAN)Desinstalación$(RESET)\n"
 	@printf "  %-28s %s\n" "uninstall"        "Desinstala versión activa + symlinks"
 	@printf "  %-28s %s\n" "uninstall-version VERSION=<v>" "Desinstala versión específica"
