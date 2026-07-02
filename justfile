@@ -8,6 +8,7 @@
 #   just           — muestra ayuda
 #   just setup     — flujo completo: clone → compile → install → post-install
 #   just run <model.gguf>  — inicia llama-server con el modelo dado
+#   just run-id <id>       — inicia llama-server con un modelo del catálogo
 # =============================================================================
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
@@ -84,15 +85,42 @@ _compile-if-needed profile:
 # Runtime
 # =============================================================================
 
-# Inicia llama-server con el modelo especificado
+# Detiene cualquier llama-server activo
+stop-server:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if pgrep -x llama-server >/dev/null 2>&1; then
+        echo "[INFO] Deteniendo llama-server activo ..."
+        pkill -TERM -x llama-server
+        for _ in {1..20}; do
+            pgrep -x llama-server >/dev/null 2>&1 || exit 0
+            sleep 0.25
+        done
+        echo "[WARN] llama-server no terminó con SIGTERM; enviando SIGKILL ..."
+        pkill -KILL -x llama-server
+    else
+        echo "[INFO] No hay llama-server activo."
+    fi
+
+# Inicia llama-server con el modelo especificado; solo permite uno activo
 run model port="8080":
+    just stop-server
     @echo "[INFO] Iniciando llama-server con {{model}} en puerto {{port}} ..."
     llama-server \
       -m "{{model}}" \
       --host 0.0.0.0 \
       --port {{port}} \
-      -c 4096 \
+      --jinja \
+      --ctx-size 4096 \
+      -n 1024 \
       -t "$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
+
+# Inicia llama-server con un modelo del catálogo por ID
+run-id id port="8080":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    model="$(python3 scripts/models/model-download.py --path "{{id}}")"
+    just run "$model" "{{port}}"
 
 # Inicia llama-cli en modo interactivo con el modelo especificado
 chat model:

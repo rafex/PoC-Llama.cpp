@@ -10,6 +10,7 @@ Uso:
   python3 scripts/models/model-download.py --type chat
   python3 scripts/models/model-download.py --list
   python3 scripts/models/model-download.py --id qwen2.5-1.5b-chat-q4
+  python3 scripts/models/model-download.py --path qwen2.5-1.5b-chat-q4
 """
 
 import sys
@@ -92,6 +93,10 @@ def print_catalog(models: list[dict]) -> None:
 def already_downloaded(model: dict) -> Optional[Path]:
     dest = MODELS_BASE / model["dest_dir"] / model["hf_file"]
     return dest if dest.exists() else None
+
+
+def model_path(model: dict) -> Path:
+    return MODELS_BASE / model["dest_dir"] / model["hf_file"]
 
 
 def extra_files(model: dict) -> list[str]:
@@ -219,6 +224,7 @@ def main() -> None:
                         help="Filtrar por tipo de modelo")
     parser.add_argument("--list",  action="store_true", help="Solo listar, no descargar")
     parser.add_argument("--id",    help="Descargar directamente por ID sin menú interactivo")
+    parser.add_argument("--path",  help="Imprimir ruta local del modelo por ID")
     args = parser.parse_args()
 
     models = load_catalog(args.type)
@@ -230,6 +236,19 @@ def main() -> None:
     if args.list:
         print_catalog(models)
         sys.exit(0)
+
+    if args.path:
+        match = [m for m in models if m["id"] == args.path]
+        if not match:
+            print(c("red", f"[ERROR] ID '{args.path}' no encontrado en el catálogo."), file=sys.stderr)
+            sys.exit(1)
+        path = model_path(match[0])
+        if not path.exists():
+            print(c("red", f"[ERROR] Modelo no descargado: {path}"), file=sys.stderr)
+            print(c("yellow", f"[INFO] Descárgalo con: just model-download-id {args.path}"), file=sys.stderr)
+            sys.exit(1)
+        print(path)
+        return
 
     if args.id:
         match = [m for m in models if m["id"] == args.id]
