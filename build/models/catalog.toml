@@ -52,6 +52,39 @@ dest_dir    = "gguf"
 description = "Buena calidad de respuesta con 4 GB de RAM."
 
 [[models]]
+id          = "xlam2-1b-fc-q4"
+name        = "Salesforce xLAM 2 1B Function Calling Q4_K_M"
+type        = "chat"
+hf_repo     = "Salesforce/xLAM-2-1b-fc-r-gguf"
+hf_file     = "xLAM-2-1B-fc-r-Q4_K_M.gguf"
+size_gb     = 0.7
+ram_gb      = 2
+dest_dir    = "gguf"
+description = "Modelo compacto especializado en function calling y agentes. Recomendado para probar tool use en CPU antigua."
+
+[[models]]
+id          = "smollm2-1.7b-chat-q4"
+name        = "SmolLM2 1.7B Instruct Q4_K_M"
+type        = "chat"
+hf_repo     = "HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF"
+hf_file     = "smollm2-1.7b-instruct-q4_k_m.gguf"
+size_gb     = 1.1
+ram_gb      = 2
+dest_dir    = "gguf"
+description = "Chat general ligero para equipos viejos. Buen balance entre velocidad y calidad en CPU-only."
+
+[[models]]
+id          = "qwen3-1.7b-chat-q4"
+name        = "Qwen3 1.7B Q4_K_M"
+type        = "chat"
+hf_repo     = "ggml-org/Qwen3-1.7B-GGUF"
+hf_file     = "Qwen3-1.7B-Q4_K_M.gguf"
+size_gb     = 1.2
+ram_gb      = 3
+dest_dir    = "gguf"
+description = "Qwen moderno y pequeño. Buena opción para instrucciones, razonamiento ligero y prompts multilingües."
+
+[[models]]
 id          = "phi3-mini-3.8b-chat-q4"
 name        = "Microsoft Phi-3 Mini 3.8B Instruct Q4_K_M"
 type        = "chat"
@@ -99,7 +132,7 @@ description = "Muy ligero y rápido. Buena opción para hardware limitado."
 id          = "llama3.2-1b-chat-q4"
 name        = "Llama 3.2 1B Instruct Q4_K_M"
 type        = "chat"
-hf_repo     = "bartowski/Llama-3.2-1B-Instruct-GGUF"
+hf_repo     = "unsloth/Llama-3.2-1B-Instruct-GGUF"
 hf_file     = "Llama-3.2-1B-Instruct-Q4_K_M.gguf"
 size_gb     = 0.8
 ram_gb      = 2
