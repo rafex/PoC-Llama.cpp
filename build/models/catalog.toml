@@ -96,6 +96,17 @@ dest_dir    = "gguf"
 description = "Microsoft Phi-3 Mini (3.8B). Excelente razonamiento para su tamaño."
 
 [[models]]
+id          = "phi4-mini-3.8b-chat-q4"
+name        = "Microsoft Phi-4 Mini Instruct 3.8B Q4_K_M"
+type        = "chat"
+hf_repo     = "unsloth/Phi-4-mini-instruct-GGUF"
+hf_file     = "Phi-4-mini-instruct-Q4_K_M.gguf"
+size_gb     = 2.5
+ram_gb      = 5
+dest_dir    = "gguf"
+description = "Phi-4 Mini Instruct cuantizado. Mejor calidad que Phi-3 Mini, usable en CPU con suficiente RAM."
+
+[[models]]
 id          = "gemma2-2b-chat-q4"
 name        = "Google Gemma 2 2B Instruct Q4_K_M"
 type        = "chat"
