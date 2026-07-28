@@ -1,0 +1,141 @@
+# =============================================================================
+# build-multiarch.yml — Compila llama.cpp para 3 plataformas
+#
+# Trigger: manual (workflow_dispatch) desde la UI de GitHub
+#
+# Plataformas:
+#   linux-x86_64    — ubuntu-latest (AVX2, OpenBLAS)
+#   linux-aarch64   — ubuntu-24.04-arm (NEON, OpenBLAS)
+#   darwin-arm64    — macos-latest (Metal)
+#
+# Los binarios se empaquetan como artifacts descargables.
+# =============================================================================
+
+name: Build llama.cpp multi-arquitectura
+
+on:
+  workflow_dispatch:
+    inputs:
+      llama_tag:
+        description: 'Tag de llama.cpp (ej: b9852). Vacío = última release.'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── Linux x86_64 ──────────────────────────────────────────────
+          - name: linux-x86_64
+            runs-on: ubuntu-latest
+            arch: x86_64
+            cmake_flags: >-
+              -DCMAKE_BUILD_TYPE=Release
+              -DGGML_AVX2=ON
+              -DGGML_AVX=ON
+              -DGGML_F16C=ON
+              -DGGML_FMA=ON
+              -DGGML_BLAS=ON
+              -DGGML_BLAS_VENDOR=OpenBLAS
+              -DLLAMA_BUILD_TESTS=OFF
+              -DLLAMA_BUILD_EXAMPLES=ON
+            deps_install: |
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq libopenblas-dev libssl-dev
+
+          # ── Linux aarch64 (ARM 64-bit) ────────────────────────────────
+          - name: linux-aarch64
+            runs-on: ubuntu-24.04-arm
+            arch: aarch64
+            cmake_flags: >-
+              -DCMAKE_BUILD_TYPE=Release
+              -DGGML_NEON=ON
+              -DGGML_SVE=OFF
+              -DGGML_NATIVE=OFF
+              -DGGML_BLAS=ON
+              -DGGML_BLAS_VENDOR=OpenBLAS
+              -DLLAMA_BUILD_TESTS=OFF
+              -DLLAMA_BUILD_EXAMPLES=ON
+            deps_install: |
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq libopenblas-dev libssl-dev
+
+          # ── macOS arm64 (Apple Silicon) ────────────────────────────────
+          - name: darwin-arm64
+            runs-on: macos-latest
+            arch: arm64
+            cmake_flags: >-
+              -DCMAKE_BUILD_TYPE=Release
+              -DGGML_METAL=ON
+              -DGGML_BLAS=OFF
+              -DLLAMA_BUILD_TESTS=OFF
+              -DLLAMA_BUILD_EXAMPLES=ON
+            deps_install: |
+              echo "[INFO] No se requieren dependencias extra en macOS"
+
+    runs-on: ${{ matrix.runs-on }}
+    name: ${{ matrix.name }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Instalar dependencias
+        run: ${{ matrix.deps_install }}
+
+      - name: Clonar llama.cpp
+        id: clone
+        run: |
+          TAG="${{ github.event.inputs.llama_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(python3 scripts/build/fetch-latest-tag.py)
+            echo "[INFO] Usando última release: $TAG"
+          else
+            echo "[INFO] Usando tag especificado: $TAG"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          git clone --depth=1 --branch "$TAG" -c advice.detachedHead=false \
+            https://github.com/ggerganov/llama.cpp.git build/llama.cpp
+          echo "[OK] llama.cpp $TAG clonado."
+
+      - name: Configurar cmake
+        run: |
+          cmake -S build/llama.cpp -B build/llama.cpp/build-out \
+            ${{ matrix.cmake_flags }}
+
+      - name: Compilar
+        run: |
+          JOBS=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+          cmake --build build/llama.cpp/build-out \
+            --config Release \
+            --parallel "$JOBS"
+
+      - name: Empaquetar binarios
+        run: |
+          mkdir -p dist/bin
+          BINARIES=(
+            llama-cli llama-server llama-bench llama-embedding
+            llama-quantize llama-gguf llama-gguf-split llama-gguf-hash
+            llama-tokenize llama-imatrix llama-mtmd-cli
+          )
+          for bin in "${BINARIES[@]}"; do
+            src="build/llama.cpp/build-out/bin/$bin"
+            if [ -f "$src" ]; then
+              cp "$src" dist/bin/
+              echo "  [OK] $bin"
+            else
+              echo "  [--] $bin (no encontrado)"
+            fi
+          done
+          tar czf "llama-${{ matrix.name }}.tar.gz" -C dist .
+          ls -lh "llama-${{ matrix.name }}.tar.gz"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama-${{ matrix.name }}
+          path: llama-${{ matrix.name }}.tar.gz
+          retention-days: 90

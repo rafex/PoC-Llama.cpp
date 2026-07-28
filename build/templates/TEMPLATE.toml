@@ -1,0 +1,130 @@
+# =============================================================================
+# TEMPLATE — Perfil de hardware para PoC-Llama.cpp
+#
+# Rellena este archivo con la info de tu equipo y compártelo.
+# El mantenedor del proyecto usará esta info para generar los perfiles
+# de compilación (build.toml) y compilar llama.cpp para tu hardware.
+#
+# OPCIÓN A (recomendada): ejecuta el script auxiliar en tu máquina Linux:
+#   bash scripts/debug/collect-hw-info.sh
+#   → genera la salida TOML lista para copiar/pegar
+#
+# OPCIÓN B: rellena este archivo manualmente siguiendo las instrucciones.
+# =============================================================================
+
+# =============================================================================
+# Hardware — datos de tu equipo
+# =============================================================================
+[hardware]
+
+# Fabricante del equipo
+# Ej: Dell Inc., Lenovo, HP, Apple Inc., ASUS, Gigabyte, Raspberry Pi Foundation
+manufacturer = ""
+
+# Modelo del equipo
+# Ej: Optiplex 7010, ThinkPad T480, Macmini6.2, Raspberry Pi 4 Model B
+product = ""
+
+# Modelo del procesador (tal como aparece en /proc/cpuinfo o sysctl)
+# Ej: Intel Core i7-8700K, AMD Ryzen 5 5600X, ARM Cortex-A72
+cpu_model = ""
+
+# Número total de hilos lógicos
+# Linux: nproc
+# macOS: sysctl -n hw.logicalcpu
+logical_cpus = 0
+
+# Número de núcleos físicos
+# Linux: grep -m1 'cpu cores' /proc/cpuinfo | awk '{print $NF}'
+# macOS: sysctl -n hw.physicalcpu
+physical_cores = 0
+
+# Sistema operativo: linux o darwin
+os = "linux"
+
+# =============================================================================
+# Build — configuración de compilación
+# =============================================================================
+[build]
+
+# Número de jobs de compilación (normalmente igual a logical_cpus)
+jobs = 0
+
+# Tipo de build (Release es el recomendado)
+type = "Release"
+
+# =============================================================================
+# CPU — procesador y extensiones SIMD
+# =============================================================================
+
+# Vendor del procesador: intel, amd o arm
+# Linux: grep -m1 vendor_id /proc/cpuinfo
+cpu_vendor = ""
+
+# Microarquitectura del procesador
+# Ejemplos comunes:
+#   Intel: sandybridge, ivybridge, haswell, broadwell, skylake, alderlake
+#   AMD:   znver1, znver2, znver3, znver4
+#   ARM:   cortex-a53, cortex-a72, cortex-a76, neoverse-n1
+# Si no estás seguro, deja vacío y el script lo detectará por los flags.
+cpu_arch = ""
+
+# --- Flags SIMD ---
+# Pon true/false según los flags que veas en tu equipo:
+#   Linux:  grep -m1 flags /proc/cpuinfo
+#   macOS:  sysctl -n machdep.cpu.features
+#
+# Los nombres en /proc/cpuinfo están separados por espacios.
+# Ejemplo: si la línea contiene "sse4_1 sse4_2 avx avx2 f16c fma bmi2",
+#          entonces sse4_1=true, sse4_2=true, avx=true, avx2=true, etc.
+
+[cpu.simd]
+
+# Intel/AMD — extensiones SSE, AVX, FMA, BMI
+sse41  = false    # /proc/cpuinfo: sse4_1
+sse42  = false    # /proc/cpuinfo: sse4_2
+avx    = false    # /proc/cpuinfo: avx
+avx2   = false    # /proc/cpuinfo: avx2
+f16c   = false    # /proc/cpuinfo: f16c
+fma    = false    # /proc/cpuinfo: fma
+bmi1   = false    # /proc/cpuinfo: bmi1
+bmi2   = false    # /proc/cpuinfo: bmi2
+avx512 = false    # /proc/cpuinfo: avx512f (o avx512bw, avx512cd, etc.)
+
+# ARM — extensiones NEON, SVE, CRC
+neon   = false    # /proc/cpuinfo: asimd o neon
+sve    = false    # /proc/cpuinfo: sve
+crc32  = false    # /proc/cpuinfo: crc32
+
+# =============================================================================
+# Dependencias — herramientas necesarias para compilar
+# =============================================================================
+[dependencies]
+
+# Binarios que deben estar en PATH (verificados con command -v)
+commands = ["git", "cmake", "gcc", "g++", "pkg-config"]
+
+# Librerías verificadas con pkg-config --exists
+pkg_config = ["openblas", "openssl"]
+
+# Paquetes apt (solo informativo, para referencia del mantenedor)
+apt_packages = [
+  "build-essential",
+  "cmake",
+  "git",
+  "libopenblas-dev",
+  "libssl-dev",
+  "pkg-config",
+]
+
+# =============================================================================
+# Notas adicionales (opcional)
+# =============================================================================
+# Si tu equipo tiene alguna particularidad, añádela aquí:
+# - GPU detectada (NVIDIA, AMD, etc.)
+# - Cantidad de RAM
+# - Problemas conocidos de compilación
+# - Flags de compilación adicionales que necesites
+#
+# Ejemplo:
+#   notes = "GPU: NVIDIA RTX 3060 12GB, RAM: 32GB DDR4, OpenBLAS ya instalado"
