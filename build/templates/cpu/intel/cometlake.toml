@@ -1,0 +1,82 @@
+# =============================================================================
+# Perfil de CPU: Intel Comet Lake (10ª generación)
+#
+# Aplicable a:
+#   Core i5-10500T, i7-10700, i9-10900, i3-10100
+#   Xeon W-1200 series
+#   Celeron/Pentium de 10ª generación
+#
+# Extensiones soportadas (/proc/cpuinfo):
+#   SSE4.1, SSE4.2, AVX, AVX2, FMA3, F16C, BMI1, BMI2 — SÍ
+#   AVX-512                                             — NO
+#
+# Requisitos:
+#   - gcc 12+ o clang 14+ (para -march=cometlake)
+#   - Si gcc < 12, usar -march=skylake en su lugar
+#
+# Validado en:
+#   - [ ] Intel i5-10500T (pendiente de validación en hardware real)
+#
+# Ver también:
+#   docs/architecture/decisions.md ADR-005
+# =============================================================================
+
+[cpu]
+name    = "Intel Comet Lake"
+vendor  = "intel"
+arch    = "cometlake"
+gen     = "10th"
+
+# Extensiones SIMD soportadas
+sse41  = true
+sse42  = true
+avx    = true
+avx2   = true
+f16c   = true
+fma    = true
+bmi1   = true
+bmi2   = true
+
+# Extensiones NO soportadas (defensa en profundidad)
+avx512 = false
+
+# =============================================================================
+# Configuración del compilador
+# =============================================================================
+
+[compiler]
+march = "cometlake"
+mtune = "cometlake"
+
+cflags = "-O3 -ffast-math -fno-finite-math-only"
+
+# =============================================================================
+# Flags cmake de extensiones CPU para ggml
+# =============================================================================
+
+[cmake.flags]
+GGML_AVX2   = "ON"
+GGML_FMA    = "ON"
+GGML_F16C   = "ON"
+GGML_BMI2   = "ON"
+
+GGML_AVX512 = "OFF"
+GGML_NATIVE = "OFF"
+
+# =============================================================================
+# Dependencias
+# =============================================================================
+
+[dependencies]
+commands = ["git", "cmake", "gcc-12", "g++-12", "pkg-config"]
+pkg_config = ["openblas", "openssl"]
+apt_packages = [
+  "build-essential",
+  "cmake",
+  "git",
+  "gcc-12",
+  "g++-12",
+  "libopenblas-dev",
+  "libssl-dev",
+  "pkg-config",
+]
