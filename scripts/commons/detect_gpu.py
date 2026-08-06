@@ -26,13 +26,12 @@ from typing import Dict, Any, List, Optional
 # Orden: requeridos para compilar, luego opcionales
 _VULKAN_DEBIAN_PKGS: List[Dict[str, str]] = [
     {"pkg": "libvulkan-dev",       "role": "headers + loader (compilación)"},
-    {"pkg": "glslang-tools",       "role": "compilador glslc (compilación)"},
+    {"pkg": "glslc",               "role": "compilador glslc (compilación)"},
     {"pkg": "mesa-vulkan-drivers", "role": "driver Intel/AMD (runtime)"},
     {"pkg": "vulkan-tools",        "role": "vulkaninfo (diagnóstico, opcional)"},
 ]
 
-# Para build.mk: paquetes mínimos requeridos para compilar con GGML_VULKAN=ON
-_VULKAN_REQUIRED_PKGS = {"libvulkan-dev", "glslang-tools"}
+_VULKAN_REQUIRED_PKGS = {"libvulkan-dev", "glslc"}
 
 
 def run_command(cmd: List[str]) -> str:
@@ -228,7 +227,11 @@ def main():
 
     if "--vulkan-override" in sys.argv:
         if info["vulkan_supported"]:
-            print("-DGGML_VULKAN=ON")
+            glslc_path = shutil.which("glslc")
+            if glslc_path:
+                print(f"-DGGML_VULKAN=ON -DVulkan_GLSLC_EXECUTABLE={glslc_path}")
+            else:
+                print("-DGGML_VULKAN=ON")
         sys.exit(0)
 
     if "--missing" in sys.argv:
@@ -279,7 +282,7 @@ def main():
         if missing:
             print(f"  {bold}Instalar con:{reset}          {cyan}sudo apt-get install -y {' '.join(missing)}{reset}")
     else:
-        print(f"  {bold}Soporte Vulkan:{reset}       {yellow}NO (requiere libvulkan-dev + glslang-tools){reset}")
+        print(f"  {bold}Soporte Vulkan:{reset}       {yellow}NO (requiere libvulkan-dev + glslc){reset}")
 
     print(f"  {bold}Soporte CUDA:{reset}         {green + 'SÍ' + reset if info['cuda_supported'] else 'NO'}")
     print(f"  {bold}Soporte ROCm:{reset}         {green + 'SÍ' + reset if info['rocm_supported'] else 'NO'}")
