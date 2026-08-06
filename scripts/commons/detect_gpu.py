@@ -91,6 +91,22 @@ def _detect_vulkan_packages() -> Dict[str, Any]:
         "all_required_installed": len(missing_required) == 0,
     }
 
+# GPUs Intel anteriores a Gen8 (Broadwell) no soportan fp16 storage,
+# requerido por el backend Vulkan de llama.cpp. Marcar como no compatibles.
+_INTEL_GPU_TOO_OLD = {
+    "2nd generation", "2nd gen",
+    "3rd generation", "3rd gen",
+    "4th generation", "4th gen",
+    "sandybridge", "ivybridge", "haswell",
+    "bay trail", "cherry trail",
+}
+
+def _intel_gen_too_old(gpu_desc: str) -> bool:
+    for keyword in _INTEL_GPU_TOO_OLD:
+        if keyword.lower() in gpu_desc.lower():
+            return True
+    return False
+
 def detect_macos_gpu() -> Dict[str, Any]:
     gpu_info = {
         "vendor": "Apple",
@@ -197,7 +213,10 @@ def detect_linux_gpu() -> Dict[str, Any]:
         gpu_info["model"] = first_gpu
         if "intel" in first_gpu.lower() or "ivybridge" in first_gpu.lower():
             gpu_info["vendor"] = "Intel"
-            if vulkan_ok:
+            if _intel_gen_too_old(first_gpu):
+                gpu_info["vulkan_supported"] = False
+                gpu_info["backend_recommended"] = "CPU"
+            elif vulkan_ok:
                 gpu_info["backend_recommended"] = "GGML_VULKAN"
             else:
                 gpu_info["backend_recommended"] = "CPU"
