@@ -20,6 +20,7 @@ import platform
 import subprocess
 import shutil
 import json
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 # Paquetes Debian necesarios para compilación Vulkan de llama.cpp
@@ -28,6 +29,7 @@ _VULKAN_DEBIAN_PKGS: List[Dict[str, str]] = [
     {"pkg": "libvulkan-dev",       "role": "headers + loader (compilación)"},
     {"pkg": "glslang-tools",       "role": "herramientas glslang (compilación)"},
     {"pkg": "glslc",               "role": "compilador glslc (Debian 13+)"},
+    {"pkg": "spirv-headers",       "role": "headers SPIR-V (compilación shaders)"},
     {"pkg": "mesa-vulkan-drivers", "role": "driver Intel/AMD (runtime)"},
     {"pkg": "vulkan-tools",        "role": "vulkaninfo (diagnóstico, opcional)"},
 ]
@@ -71,12 +73,15 @@ def _detect_vulkan_packages() -> Dict[str, Any]:
         pkgs_status.get("glslang-tools", {}).get("installed", False) or
         pkgs_status.get("glslc", {}).get("installed", False)
     )
+    spirv_ok = pkgs_status.get("spirv-headers", {}).get("installed", False)
 
     missing_required = []
     if not libdev_ok:
         missing_required.append("libvulkan-dev")
     if not compiler_ok:
         missing_required.append("glslc")
+    if not spirv_ok:
+        missing_required.append("spirv-headers")
 
     return {
         "packages": pkgs_status,
@@ -168,7 +173,10 @@ def detect_linux_gpu() -> Dict[str, Any]:
 
     has_glslc = shutil.which("glslc") is not None
     has_headers = os.path.exists("/usr/include/vulkan/vulkan.h")
-    vulkan_sdk_ok = has_glslc and has_headers
+    has_spirv = os.path.exists("/usr/include/spirv/unified1/spirv.h")
+    if not has_spirv:
+        has_spirv = any(Path("/usr").glob("**/SPIRV-HeadersConfig.cmake"))
+    vulkan_sdk_ok = has_glslc and has_headers and has_spirv
 
     vulkan_ok = False
     if vulkan_sdk_ok:
