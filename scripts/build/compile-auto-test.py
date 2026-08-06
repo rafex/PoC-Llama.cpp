@@ -26,6 +26,7 @@ CYAN = "\033[36m"
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
 RED = "\033[31m"
+DIM = "\033[2m"
 RESET = "\033[0m"
 
 
@@ -79,6 +80,54 @@ def gpu_section() -> None:
     lines = result.stdout.splitlines()
     for line in lines:
         print(f"  {line}" if line.strip() else "")
+
+
+def vulkan_instructions_section() -> None:
+    section("Instrucciones para habilitar GPU (Vulkan)")
+
+    raw = run([sys.executable, str(DETECT_GPU), "--json"])
+    if not raw:
+        print("  (información no disponible)")
+        return
+
+    info = json.loads(raw)
+
+    # macOS: no aplica
+    if info.get("metal_supported"):
+        print(f"  {GREEN}✓{RESET}  Metal disponible en macOS — no requiere Vulkan")
+        return
+
+    vulkan_packages = info.get("vulkan_packages", {})
+    if not vulkan_packages:
+        # Sin dpkg — usar chequeo binario
+        missing_cmd = run([sys.executable, str(DETECT_GPU), "--missing"])
+        if missing_cmd:
+            print(f"  {YELLOW}Paquetes faltantes:{RESET}")
+            print(f"  {BOLD}Instalar con:{RESET}  {CYAN}{missing_cmd}{RESET}")
+        elif not info.get("vulkan_supported"):
+            print(f"  {YELLOW}(no se detectaron paquetes Vulkan — instala libvulkan-dev glslang-tools){RESET}")
+        else:
+            print(f"  {GREEN}✓ SDK Vulkan completo{RESET}")
+        return
+
+    # dpkg disponible — mostrar detalle por paquete
+    all_ok = True
+    for pkg_name in sorted(vulkan_packages.keys()):
+        pkg_data = vulkan_packages[pkg_name]
+        if pkg_data["installed"]:
+            print(f"  {GREEN}✓{RESET} {pkg_name:<24} {DIM}({pkg_data['role']}){RESET}")
+        else:
+            print(f"  {RED}✗{RESET} {pkg_name:<24} {DIM}({pkg_data['role']}){RESET}")
+            all_ok = False
+
+    if all_ok:
+        print(f"\n  {GREEN}✓ SDK Vulkan completo — GGML_VULKAN=ON se añadirá automáticamente{RESET}")
+    else:
+        missing_cmd = run([sys.executable, str(DETECT_GPU), "--missing"])
+        print(f"\n  {BOLD}Para habilitar aceleración GPU:{RESET}")
+        if missing_cmd:
+            print(f"  {CYAN}{missing_cmd}{RESET}")
+        print(f"\n  Luego ejecuta  {CYAN}make compile-auto{RESET}  (se añadirá -DGGML_VULKAN=ON automáticamente)")
 
 
 def profile_section(forced_profile: str = "") -> None:
@@ -139,6 +188,7 @@ def main() -> None:
     print(f"\n{BOLD}PoC-Llama.cpp — compile-auto-test (dry-run){RESET}")
     hardware_section()
     gpu_section()
+    vulkan_instructions_section()
     profile_section(forced_profile)
     flags_section()
 

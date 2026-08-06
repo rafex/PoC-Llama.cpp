@@ -9,6 +9,9 @@ Uso:
   python3 scripts/commons/detect_gpu.py
   python3 scripts/commons/detect_gpu.py --json
   python3 scripts/commons/detect_gpu.py --toml
+  python3 scripts/commons/detect_gpu.py --has-vulkan-sdk   # exit 0/1
+  python3 scripts/commons/detect_gpu.py --vulkan-override   # emite -DGGML_VULKAN=ON o vacío
+  python3 scripts/commons/detect_gpu.py --missing           # lista paquetes faltantes
 """
 
 import sys
@@ -17,7 +20,20 @@ import platform
 import subprocess
 import shutil
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+
+# Paquetes Debian necesarios para compilación Vulkan de llama.cpp
+# Orden: requeridos para compilar, luego opcionales
+_VULKAN_DEBIAN_PKGS: List[Dict[str, str]] = [
+    {"pkg": "libvulkan-dev",       "role": "headers + loader (compilación)"},
+    {"pkg": "glslang-tools",       "role": "compilador glslc (compilación)"},
+    {"pkg": "mesa-vulkan-drivers", "role": "driver Intel/AMD (runtime)"},
+    {"pkg": "vulkan-tools",        "role": "vulkaninfo (diagnóstico, opcional)"},
+]
+
+# Para build.mk: paquetes mínimos requeridos para compilar con GGML_VULKAN=ON
+_VULKAN_REQUIRED_PKGS = {"libvulkan-dev", "glslang-tools"}
+
 
 def run_command(cmd: List[str]) -> str:
     try:
@@ -28,11 +44,41 @@ def run_command(cmd: List[str]) -> str:
         pass
     return ""
 
+
+def _check_debian_pkg(pkg: str) -> bool:
+    result = run_command(["dpkg-query", "-W", "-f=${Status}", pkg])
+    return "install ok installed" in result
+
+
+def _detect_vulkan_packages() -> Dict[str, Any]:
+    pkgs_status = {}
+    missing = []
+    missing_required = []
+    for entry in _VULKAN_DEBIAN_PKGS:
+        pkg = entry["pkg"]
+        installed = _check_debian_pkg(pkg)
+        pkgs_status[pkg] = {
+            "installed": installed,
+            "role": entry["role"],
+        }
+        if not installed:
+            missing.append(pkg)
+            if pkg in _VULKAN_REQUIRED_PKGS:
+                missing_required.append(pkg)
+    return {
+        "packages": pkgs_status,
+        "missing": missing,
+        "missing_required": missing_required,
+        "all_required_installed": len(missing_required) == 0,
+    }
+
 def detect_macos_gpu() -> Dict[str, Any]:
     gpu_info = {
         "vendor": "Apple",
         "model": "Apple Integrated / Discrete GPU",
         "vulkan_supported": False,
+        "vulkan_packages": {},
+        "vulkan_missing": [],
         "cuda_supported": False,
         "rocm_supported": False,
         "metal_supported": True,
@@ -53,6 +99,8 @@ def detect_linux_gpu() -> Dict[str, Any]:
         "vendor": "unknown",
         "model": "unknown",
         "vulkan_supported": False,
+        "vulkan_packages": {},
+        "vulkan_missing": [],
         "cuda_supported": False,
         "rocm_supported": False,
         "metal_supported": False,
@@ -99,10 +147,18 @@ def detect_linux_gpu() -> Dict[str, Any]:
             has_nvidia = True
 
     # 3. Check Vulkan (Universal para Intel HD / Iris / Arc / AMD / NVIDIA)
-    #    Requiere SDK completo: libvulkan + headers + glslc (cmake compila shaders)
-    has_glslc = shutil.which("glslc") is not None
-    has_headers = os.path.exists("/usr/include/vulkan/vulkan.h")
-    vulkan_sdk_ok = has_glslc and has_headers
+    #    Requiere SDK completo: headers + glslc (cmake compila shaders).
+    #    En Debian: verifica paquetes vía dpkg-query.
+    vulkan_pkg_info = _detect_vulkan_packages()
+    gpu_info["vulkan_packages"] = vulkan_pkg_info["packages"]
+    gpu_info["vulkan_missing"] = vulkan_pkg_info["missing"]
+    vulkan_sdk_ok = vulkan_pkg_info["all_required_installed"]
+
+    # Fallback: si dpkg-query no está disponible, usar detección binaria
+    if not vulkan_sdk_ok:
+        has_glslc = shutil.which("glslc") is not None
+        has_headers = os.path.exists("/usr/include/vulkan/vulkan.h")
+        vulkan_sdk_ok = has_glslc and has_headers
 
     vulkan_ok = False
     if vulkan_sdk_ok:
@@ -151,6 +207,8 @@ def get_gpu_info() -> Dict[str, Any]:
             "vendor": "unknown",
             "model": "unknown",
             "vulkan_supported": False,
+            "vulkan_packages": {},
+            "vulkan_missing": [],
             "cuda_supported": False,
             "rocm_supported": False,
             "metal_supported": False,
@@ -161,8 +219,26 @@ def get_gpu_info() -> Dict[str, Any]:
 def main():
     info = get_gpu_info()
 
+    # ── Modos especiales de salida (sin formato consola) ──────────────────
+    if "--has-vulkan-sdk" in sys.argv:
+        if info["vulkan_supported"]:
+            sys.exit(0)
+        else:
+            sys.exit(1)
+
+    if "--vulkan-override" in sys.argv:
+        if info["vulkan_supported"]:
+            print("-DGGML_VULKAN=ON")
+        sys.exit(0)
+
+    if "--missing" in sys.argv:
+        missing = info.get("vulkan_missing", [])
+        if missing:
+            print(f"sudo apt-get install -y {' '.join(missing)}")
+        sys.exit(0)
+
     if "--json" in sys.argv:
-        print(json.dumps(info, indent=2))
+        print(json.dumps(info, indent=2, ensure_ascii=False))
         return
 
     if "--toml" in sys.argv:
@@ -177,17 +253,34 @@ def main():
         print(f'vram_gb             = {info["vram_gb"]}')
         return
 
-    # Salida por defecto formateada para consola
+    # ── Salida por defecto formateada para consola ────────────────────────
     reset = "\033[0m"
     bold = "\033[1m"
     cyan = "\033[36m"
     green = "\033[32m"
     yellow = "\033[33m"
+    red = "\033[31m"
+    dim = "\033[2m"
 
     print(f"{bold}PoC-Llama.cpp — Diagnóstico de GPU{reset}\n")
     print(f"  {bold}Fabricante / Modelo:{reset}  {info['vendor']} — {info['model']}")
     print(f"  {bold}VRAM Estimada:{reset}        {info['vram_gb']} GB")
-    print(f"  {bold}Soporte Vulkan:{reset}       {green + 'SÍ' + reset if info['vulkan_supported'] else yellow + 'NO (requiere vulkan-sdk: libvulkan-dev + glslang-tools)' + reset}")
+
+    # Vulkan: mostrar paquetes individuales si están disponibles
+    vulkan_pkg_info = info.get("vulkan_packages", {})
+    if info['vulkan_supported']:
+        print(f"  {bold}Soporte Vulkan:{reset}       {green}SÍ{reset}")
+    elif vulkan_pkg_info:
+        print(f"  {bold}Soporte Vulkan:{reset}       {yellow}NO — paquetes faltantes:{reset}")
+        for pkg_name, pkg_data in sorted(vulkan_pkg_info.items()):
+            icon = f"{green}✓{reset}" if pkg_data["installed"] else f"{red}✗{reset}"
+            print(f"      {icon} {pkg_name:<24} {dim}({pkg_data['role']}){reset}")
+        missing = info.get("vulkan_missing", [])
+        if missing:
+            print(f"  {bold}Instalar con:{reset}          {cyan}sudo apt-get install -y {' '.join(missing)}{reset}")
+    else:
+        print(f"  {bold}Soporte Vulkan:{reset}       {yellow}NO (requiere libvulkan-dev + glslang-tools){reset}")
+
     print(f"  {bold}Soporte CUDA:{reset}         {green + 'SÍ' + reset if info['cuda_supported'] else 'NO'}")
     print(f"  {bold}Soporte ROCm:{reset}         {green + 'SÍ' + reset if info['rocm_supported'] else 'NO'}")
     print(f"  {bold}Soporte Metal:{reset}        {green + 'SÍ' + reset if info['metal_supported'] else 'NO'}")

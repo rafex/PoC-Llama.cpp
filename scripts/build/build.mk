@@ -15,22 +15,26 @@ TOML_READER       := scripts/commons/toml-reader.py
 TEMPLATES_DIR     := build/templates
 FETCH_LATEST_TAG  := scripts/build/fetch-latest-tag.py
 DETECT_PROFILE    := scripts/build/detect-profile.py
+DETECT_GPU        := scripts/commons/detect_gpu.py
+
+# Auto-detecta si el SDK Vulkan está instalado y añade GGML_VULKAN=ON
+VULKAN_OVERRIDE := $(shell python3 $(DETECT_GPU) --vulkan-override 2>/dev/null || echo "")
 
 ifdef PROFILE
   PROFILE_TOML        := $(TEMPLATES_DIR)/$(PROFILE)/build.toml
   ifneq ($(wildcard $(PROFILE_TOML)),)
     PROFILE_CMAKE_FLAGS := $(shell python3 $(TOML_READER) "$(PROFILE_TOML)" --format cmake 2>/dev/null)
     BUILD_JOBS          := $(shell python3 $(TOML_READER) "$(PROFILE_TOML)" --key build.jobs 2>/dev/null)
-    ACTIVE_CMAKE_FLAGS  := $(PROFILE_CMAKE_FLAGS) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
+    ACTIVE_CMAKE_FLAGS  := $(PROFILE_CMAKE_FLAGS) $(VULKAN_OVERRIDE) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
     ACTIVE_JOBS         := $(BUILD_JOBS)
   else
     # PROFILE definido pero build.toml no existe — fallback a detección automática
-    ACTIVE_CMAKE_FLAGS  := $(CMAKE_COMMON_FLAGS) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
+    ACTIVE_CMAKE_FLAGS  := $(CMAKE_COMMON_FLAGS) $(VULKAN_OVERRIDE) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
     ACTIVE_JOBS         := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
   endif
 else
   # Flags generados automáticamente por commons.mk según la plataforma
-  ACTIVE_CMAKE_FLAGS  := $(CMAKE_COMMON_FLAGS) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
+  ACTIVE_CMAKE_FLAGS  := $(CMAKE_COMMON_FLAGS) $(VULKAN_OVERRIDE) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
   ACTIVE_JOBS         := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 endif
 
