@@ -136,6 +136,10 @@ chat model ngl="99":
 gpu-info:
     @python3 scripts/commons/detect_gpu.py
 
+# Dry-run de compile-auto: detecta hardware, GPU y perfil TOML sin compilar
+compile-auto-test:
+    make compile-auto-test
+
 
 # Ejecuta benchmark sobre el modelo especificado
 bench model:

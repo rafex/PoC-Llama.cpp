@@ -34,7 +34,7 @@ else
   ACTIVE_JOBS         := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 endif
 
-.PHONY: clone update configure compile compile-auto build-clean build-purge profile-info
+.PHONY: clone update configure compile compile-auto compile-auto-test build-clean build-purge profile-info
 
 ## Clona llama.cpp en la última release (o LLAMA_TAG=bXXXX para versión específica)
 clone:
@@ -121,6 +121,16 @@ compile-auto:
 	    python3 $(DETECT_PROFILE) --info 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'  CPU: {d.get(\"cpu_model\",\"?\")}  |  Cores: {d.get(\"logical_cpus\",\"?\")}  |  Arch: {d.get(\"arch\",\"?\")}  |  OS: {d.get(\"os\",\"?\")}')" 2>/dev/null || true; \
 	    $(MAKE) compile; \
 	  fi; \
+	fi
+
+## Dry-run de compile-auto: detecta hardware, GPU y perfil TOML sin compilar
+##   make compile-auto-test                     → auto-detecta
+##   make compile-auto-test PROFILE=raspi/4b    → testea perfil específico
+compile-auto-test:
+	@if [ -n "$(PROFILE)" ]; then \
+	  python3 scripts/build/compile-auto-test.py --profile "$(PROFILE)"; \
+	else \
+	  python3 scripts/build/compile-auto-test.py; \
 	fi
 
 ## Muestra los flags cmake que se usarían (sin compilar)
