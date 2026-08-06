@@ -1,0 +1,75 @@
+# =============================================================================
+# Perfil de compilación: Raspberry Pi 3 Model B Rev 1.2
+#
+# Hardware identificado con:
+#   uname -a    → Linux ... aarch64 GNU/Linux
+#   lscpu       → ARM Cortex-A53, 4 cores @ 1200 MHz
+#   cat /proc/cpuinfo → Model: Raspberry Pi 3 Model B Rev 1.2
+#   Revision    → a02082 (BCM2837, 1 GB RAM)
+#
+# La configuración del procesador (march, mtune, cflags, GGML_NEON...)
+# se hereda de:
+#   build/templates/cpu/arm/cortex-a53.toml
+#
+# Este archivo solo contiene lo específico del equipo:
+#   hardware, jobs, dependencias y flags de hardware (BLAS, aceleración...).
+#
+# Consideraciones de memoria:
+#   - Pi 3B tiene 1 GB RAM fijo (todas las revisiones).
+#   - jobs=1 es obligatorio: el enlazado de llama-server es muy pesado.
+#   - Si aparece OOM durante compilación:
+#     sudo dphys-swapfile swapoff
+#     sudo sed -i 's/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=1024/' /etc/dphys-swapfile
+#     sudo dphys-swapfile setup
+#     sudo dphys-swapfile swapon
+#
+# Recomendaciones de modelos para este hardware:
+#   - Q4_K_M de ≤ 1B params (modelos muy pequeños)
+#   - Q8 de ≤ 500M params
+#   - Priorizar Q4_K_M: mejor balance velocidad/calidad con RAM limitada
+#   - Ver: just model-list-smart
+# =============================================================================
+
+inherits = "cpu/arm/cortex-a53"
+
+[hardware]
+manufacturer   = "Raspberry Pi Foundation"
+product        = "Raspberry Pi 3 Model B"
+cpu_model      = "ARM Cortex-A53 (BCM2837)"
+cpu_arch       = "aarch64"
+logical_cpus   = 4
+physical_cores = 4
+os             = "linux"
+
+[build]
+# 1 GB RAM fijo — jobs=1 es obligatorio.
+# El enlazado de llama-server consume mucha RAM; jobs=2 causa OOM.
+jobs      = 1
+type      = "Release"
+generator = "Unix Makefiles"
+
+[dependencies]
+# Binarios verificados con `command -v`
+commands = ["git", "cmake", "gcc", "g++", "pkg-config"]
+# Librerías verificadas con `pkg-config --exists`
+pkg_config = ["openblas", "openssl"]
+# Paquetes para instalar en Raspberry Pi OS (Debian bookworm/bullseye)
+apt_packages = [
+  "build-essential",
+  "cmake",
+  "git",
+  "libopenblas-dev",
+  "libssl-dev",
+  "pkg-config",
+]
+
+# Flags cmake específicos del hardware.
+# Los flags de CPU (GGML_NEON, GGML_SVE, GGML_NATIVE, compiler.*) vienen
+# de cpu/arm/cortex-a53.toml vía herencia.
+[cmake.flags]
+BUILD_SHARED_LIBS    = "OFF"
+GGML_BLAS            = "ON"
+GGML_BLAS_VENDOR     = "OpenBLAS"
+GGML_METAL           = "OFF"   # Solo disponible en Apple Silicon / macOS
+LLAMA_BUILD_TESTS    = "OFF"
+LLAMA_BUILD_EXAMPLES = "ON"

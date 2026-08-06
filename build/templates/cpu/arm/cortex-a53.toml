@@ -1,0 +1,75 @@
+# =============================================================================
+# Perfil de CPU: ARM Cortex-A53 (AArch64)
+#
+# ISA: ARMv8.0-A (64-bit)
+#
+# Extensiones verificadas en /proc/cpuinfo (flags):
+#   fp       — FP32/FP64 escalar
+#   asimd    — Advanced SIMD (NEON para AArch64, obligatorio en ARMv8-A)
+#   crc32    — CRC32 por hardware
+#   evtstrm  — event stream (PMU)
+#   cpuid    — lectura de registros de identificación de CPU
+#
+# Extensiones NO disponibles (requieren ARMv8.2+ o superior):
+#   sve      — Scalable Vector Extension    (ARMv8.2, A55/A75+)
+#   fphp     — FP16 escalar compute         (ARMv8.2-FP16)
+#   asimdhp  — FP16 vectorial compute       (ARMv8.2-FP16)
+#   dotprod  — INT8 dot product             (ARMv8.2-A, A55/A75+)
+#   i8mm     — MatMul INT8                  (ARMv8.6-A, A78+/M1+)
+#
+# NOTA sobre A53 vs A72:
+#   - A53 es in-order (eficiencia): pipeline más corto, menor IPC
+#   - A72 es out-of-order (rendimiento): dual-issue, mayor IPC
+#   - A53 tiene L2 de 512 KiB compartida entre 4 cores (vs 1 MB+ en A72)
+#   - El perfil A53 usa -O2 para generar código más compacto que cabe mejor en cache
+#   - ggml no tiene soporte DOTPROD/MATMUL_INT8 — no disponible en A53
+#
+# Equipos conocidos con este procesador:
+#   Raspberry Pi 3 Model B (BCM2837, r0p4)
+#   Raspberry Pi 3 Model B+ (BCM2837B0)
+# =============================================================================
+
+[cpu]
+name    = "ARM Cortex-A53"
+vendor  = "arm"
+arch    = "aarch64"
+isa     = "armv8-a"
+
+# Extensiones disponibles
+asimd        = true   # NEON / Advanced SIMD (ARMv8-A baseline)
+crc32        = true   # CRC32 por hardware
+fp32         = true
+fp64         = true
+
+# Extensiones NO disponibles
+sve          = false  # Scalable Vector Extension (A55/A75+, ARMv8.2)
+fp16_compute = false  # FP16 vectorial (fphp+asimdhp, ARMv8.2)
+aes_hw       = false  # AES hardware (no reportado en BCM2837)
+dotprod      = false  # INT8 dot product (ARMv8.2-A)
+i8mm         = false  # MatMul INT8 (ARMv8.6-A)
+
+# =============================================================================
+# Configuración del compilador
+# =============================================================================
+
+[compiler]
+march  = "armv8-a+crc"
+mtune  = "cortex-a53"
+# -O2 en vez de -O3: A53 es in-order con L2 compartida de 512 KiB.
+# -O2 genera código más compacto que cabe mejor en cache y reduce
+# presión en la pipeline in-order del A53.
+# -ffast-math: optimizaciones agresivas de FP
+# -fno-finite-math-only: ggml requiere soporte de NaN/Inf
+cflags = "-O2 -ffast-math -fno-finite-math-only"
+
+# =============================================================================
+# Flags cmake de extensiones CPU para ggml
+# =============================================================================
+
+[cmake.flags]
+# ASIMD/NEON disponible en todo ARMv8-A — activar
+GGML_NEON   = "ON"
+# No usar detección automática; respetar march/mtune del perfil
+GGML_NATIVE = "OFF"
+# SVE no disponible en Cortex-A53
+GGML_SVE    = "OFF"
