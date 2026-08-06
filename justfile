@@ -85,22 +85,9 @@ _compile-if-needed profile:
 # Runtime
 # =============================================================================
 
-# Detiene cualquier llama-server activo
+# Detiene cualquier llama.cpp activo vía PID o por nombre
 stop-server:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if pgrep -x llama-server >/dev/null 2>&1; then
-        echo "[INFO] Deteniendo llama-server activo ..."
-        pkill -TERM -x llama-server
-        for _ in {1..20}; do
-            pgrep -x llama-server >/dev/null 2>&1 || exit 0
-            sleep 0.25
-        done
-        echo "[WARN] llama-server no terminó con SIGTERM; enviando SIGKILL ..."
-        pkill -KILL -x llama-server
-    else
-        echo "[INFO] No hay llama-server activo."
-    fi
+    @/opt/llama.cpp/current/scripts/stop-server.sh --all --force 2>/dev/null || pkill -KILL -f "llama-" 2>/dev/null; true
 
 # Inicia llama-server con el modelo especificado y número opcional de capas GPU (ngl="99")
 run model port="43110" ngl="99":

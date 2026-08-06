@@ -45,6 +45,7 @@ set -euo pipefail
 DEFAULT_PORT=43110
 DEFAULT_NGL=__DEFAULT_NGL__
 DEFAULT_N_PREDICT=512
+PIDFILE="/tmp/llama-server-${PORT:-43110}.pid"
 
 # ── Funciones auxiliares ──────────────────────────────────────────────────
 _llama_log()   { echo "[INFO] $*"; }
@@ -185,19 +186,31 @@ _llama_log "  Hilos:      $THREADS"
 [ "$VERBOSE" = "1" ] && _llama_log "  RAM total: ${TOTAL_MEM}MB  libre: ${FREE_MEM}MB"
 [ "${#PASSTHROUGH[@]}" -gt 0 ] && _llama_log "  Args extra: ${PASSTHROUGH[*]}"
 
-# ── Detener instancia previa ──────────────────────────────────────────────
-if pgrep -x llama-server >/dev/null 2>&1; then
-    _llama_log "Deteniendo llama-server activo ..."
-    pkill -TERM -x llama-server
-    for _ in {1..20}; do
-        pgrep -x llama-server >/dev/null 2>&1 || break
-        sleep 0.25
-    done
-    if pgrep -x llama-server >/dev/null 2>&1; then
-        _llama_warn "No terminó con SIGTERM; enviando SIGKILL ..."
-        pkill -KILL -x llama-server
+# ── PID y trap ─────────────────────────────────────────────────────────
+# Re-definir PIDFILE con el puerto final después del parseo de flags
+PIDFILE="/tmp/llama-server-${PORT}.pid"
+trap "rm -f $PIDFILE" EXIT
+
+# ── Detener instancia previa vía PID ────────────────────────────────────
+if [ -f "$PIDFILE" ]; then
+    old=$(cat "$PIDFILE" 2>/dev/null || echo "")
+    if [ -n "$old" ] && kill -0 "$old" 2>/dev/null; then
+        _llama_log "Deteniendo instancia previa (PID $old) ..."
+        kill -TERM "$old"
+        for _ in {1..20}; do
+            kill -0 "$old" 2>/dev/null || break
+            sleep 0.25
+        done
+        if kill -0 "$old" 2>/dev/null; then
+            _llama_warn "No terminó con SIGTERM; enviando SIGKILL ..."
+            kill -KILL "$old"
+        fi
+        rm -f "$PIDFILE"
     fi
 fi
+
+# ── Guardar PID para stop-server.sh ─────────────────────────────────────
+echo $$ > "$PIDFILE"
 
 # ── Lanzar ────────────────────────────────────────────────────────────────
 exec "/opt/llama.cpp/current/bin/llama-server" \
@@ -257,6 +270,7 @@ set -euo pipefail
 DEFAULT_PORT=43111
 DEFAULT_NGL=__DEFAULT_NGL__
 DEFAULT_POOLING="mean"
+PIDFILE="/tmp/llama-server-${PORT:-43111}.pid"
 
 # ── Funciones auxiliares ──────────────────────────────────────────────────
 _llama_log()   { echo "[INFO] $*"; }
@@ -397,6 +411,11 @@ _llama_log "  Hilos:      $THREADS"
 [ "$VERBOSE" = "1" ] && _llama_log "  RAM total: ${TOTAL_MEM}MB  libre: ${FREE_MEM}MB"
 [ "${#PASSTHROUGH[@]}" -gt 0 ] && _llama_log "  Args extra: ${PASSTHROUGH[*]}"
 
+# ── PID y trap ─────────────────────────────────────────────────────────
+PIDFILE="/tmp/llama-server-${PORT}.pid"
+trap "rm -f $PIDFILE" EXIT
+echo $$ > "$PIDFILE"
+
 # ── Lanzar ────────────────────────────────────────────────────────────────
 exec "/opt/llama.cpp/current/bin/llama-server" \
   -m "$MODEL" \
@@ -412,5 +431,79 @@ WRAPPER
 
 sed -i "s|__DEFAULT_NGL__|${GPU_NGL_DEFAULT}|" "$WRAPPERS_DIR/start-server-embedding.sh"
 chmod 755 "$WRAPPERS_DIR/start-server-embedding.sh"
+
+# --- stop-server.sh ------------------------------------------------------------
+cat > "$WRAPPERS_DIR/stop-server.sh" << 'WRAPPER'
+#!/usr/bin/env bash
+# stop-server.sh — Detiene instancias de llama.cpp vía PID o por nombre
+# Uso:
+#   stop-server.sh                    → PIDs de /tmp/llama-server-*.pid
+#   stop-server.sh --port 43110       → PID del puerto específico
+#   stop-server.sh --pid /path/file   → PID file explícito
+#   stop-server.sh --all --force      → todos los procesos + SIGKILL
+set -euo pipefail
+
+FORCE=0 ALL=0 PIDFILE="" killed=0
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --force) FORCE=1; shift ;;
+        --all)   ALL=1; shift ;;
+        --port)  PIDFILE="/tmp/llama-server-$2.pid"; shift 2 ;;
+        --pid)   PIDFILE="$2"; shift 2 ;;
+        -h|--help)
+            echo "Uso: stop-server.sh [--force] [--port N] [--pid FILE] [--all]"
+            exit 0 ;;
+        *) shift ;;
+    esac
+done
+
+_stop_pid() {
+    local p="$1" f="$2"
+    if [ -n "$p" ] && kill -0 "$p" 2>/dev/null; then
+        echo "[INFO] Deteniendo PID $p ..."
+        kill -TERM "$p"
+        killed=1
+    fi
+    rm -f "$f"
+}
+
+# PID específico o por puerto
+if [ -n "$PIDFILE" ]; then
+    [ -f "$PIDFILE" ] && _stop_pid "$(cat "$PIDFILE")" "$PIDFILE"
+elif [ "$ALL" -ne 1 ]; then
+    for pf in /tmp/llama-server-*.pid; do
+        [ -f "$pf" ] || continue
+        _stop_pid "$(cat "$pf")" "$pf"
+    done
+fi
+
+# Limpieza por nombre si --all o si no se encontraron PIDs
+if [ "$ALL" -eq 1 ] || [ "$killed" -eq 0 ]; then
+    for proc in llama-server llama-cli llama-bench; do
+        if pgrep -x "$proc" >/dev/null 2>&1; then
+            [ "$ALL" -ne 1 ] && echo "[INFO] Limpiando $proc huérfano ..."
+            pkill -TERM -x "$proc"
+            killed=1
+        fi
+    done
+fi
+
+[ "$killed" -eq 0 ] && { echo "[INFO] No hay procesos llama.cpp activos."; exit 0; }
+
+for _ in {1..20}; do
+    pgrep -f "llama-" >/dev/null 2>&1 || { echo "[OK] Detenido."; exit 0; }
+    sleep 0.25
+done
+
+if [ "$FORCE" -eq 1 ]; then
+    echo "[WARN] SIGKILL a procesos restantes ..."
+    pkill -KILL -f "llama-"
+else
+    echo "[WARN] Algunos procesos no terminaron. Usa --force."
+    exit 1
+fi
+WRAPPER
+chmod 755 "$WRAPPERS_DIR/stop-server.sh"
 
 echo "Wrappers generados en $WRAPPERS_DIR"
