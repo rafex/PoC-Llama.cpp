@@ -10,6 +10,7 @@ Uso:
   python3 scripts/commons/detect_gpu.py --json
   python3 scripts/commons/detect_gpu.py --toml
   python3 scripts/commons/detect_gpu.py --has-vulkan-sdk   # exit 0/1
+  python3 scripts/commons/detect_gpu.py --has-gpu-sdk      # exit 0 si hay GPU (Vulkan/Metal/CUDA/ROCm)
   python3 scripts/commons/detect_gpu.py --vulkan-override   # emite -DGGML_VULKAN=ON o vacío
   python3 scripts/commons/detect_gpu.py --missing           # lista paquetes faltantes
 """
@@ -240,6 +241,13 @@ def main():
     # ── Modos especiales de salida (sin formato consola) ──────────────────
     if "--has-vulkan-sdk" in sys.argv:
         if info["vulkan_supported"]:
+            sys.exit(0)
+        else:
+            sys.exit(1)
+
+    if "--has-gpu-sdk" in sys.argv:
+        if (info["vulkan_supported"] or info["cuda_supported"] or
+                info["metal_supported"] or info.get("rocm_supported", False)):
             sys.exit(0)
         else:
             sys.exit(1)

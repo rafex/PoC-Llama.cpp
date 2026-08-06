@@ -6,14 +6,26 @@ set -euo pipefail
 INSTALL_DIR="${1:?Falta INSTALL_DIR}"
 INSTALL_CURRENT="${2:?Falta INSTALL_CURRENT}"
 WRAPPERS_DIR="$INSTALL_DIR/scripts"
+REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
 mkdir -p "$WRAPPERS_DIR"
+
+# ── Detectar soporte GPU para incluir -ngl en los wrappers ──────────────────
+GPU_NGL_LINE=""
+if [ -f "$REPO_DIR/scripts/commons/detect_gpu.py" ] && \
+   python3 "$REPO_DIR/scripts/commons/detect_gpu.py" --has-gpu-sdk 2>/dev/null; then
+    GPU_NGL_LINE='  -ngl "${NGL:-99}" \\'
+    echo "[INFO] GPU backend detectado — los wrappers usarán -ngl 99 por defecto"
+else
+    echo "[INFO] Sin GPU backend — los wrappers no incluirán -ngl"
+fi
 
 # --- start-server.sh ----------------------------------------------------------
 cat > "$WRAPPERS_DIR/start-server.sh" << 'WRAPPER'
 #!/usr/bin/env bash
 # Inicia llama-server con el modelo indicado.
 # Uso: start-server.sh <ruta-al-modelo.gguf> [puerto] [args-extra...]
+# Para desactivar GPU: NGL=0 start-server.sh ...
 set -euo pipefail
 MODEL="${1:?Especifica la ruta al modelo .gguf}"
 PORT="${2:-8080}"
@@ -38,12 +50,20 @@ exec "/opt/llama.cpp/current/bin/llama-server" \
   -m "$MODEL" \
   --host 0.0.0.0 \
   --port "$PORT" \
+#__GPU_NGL_PLACEHOLDER__
   --jinja \
   --ctx-size 4096 \
   -n 1024 \
   -t "$THREADS" \
   "$@"
 WRAPPER
+
+# ── Inyectar -ngl si GPU detectada ──────────────────────────────────────────
+if [ -n "$GPU_NGL_LINE" ]; then
+    sed -i "s|#__GPU_NGL_PLACEHOLDER__|${GPU_NGL_LINE}|" "$WRAPPERS_DIR/start-server.sh"
+else
+    sed -i '/#__GPU_NGL_PLACEHOLDER__/d' "$WRAPPERS_DIR/start-server.sh"
+fi
 chmod 755 "$WRAPPERS_DIR/start-server.sh"
 
 # --- bench.sh -----------------------------------------------------------------
@@ -53,8 +73,18 @@ cat > "$WRAPPERS_DIR/bench.sh" << 'WRAPPER'
 # Uso: bench.sh <ruta-al-modelo.gguf>
 set -euo pipefail
 MODEL="${1:?Especifica la ruta al modelo .gguf}"
-exec "/opt/llama.cpp/current/bin/llama-bench" -m "$MODEL"
+exec "/opt/llama.cpp/current/bin/llama-bench" \
+  -m "$MODEL" \
+#__GPU_NGL_PLACEHOLDER__
+  "$@"
 WRAPPER
+
+# ── Inyectar -ngl si GPU detectada ──────────────────────────────────────────
+if [ -n "$GPU_NGL_LINE" ]; then
+    sed -i "s|#__GPU_NGL_PLACEHOLDER__|${GPU_NGL_LINE}|" "$WRAPPERS_DIR/bench.sh"
+else
+    sed -i '/#__GPU_NGL_PLACEHOLDER__/d' "$WRAPPERS_DIR/bench.sh"
+fi
 chmod 755 "$WRAPPERS_DIR/bench.sh"
 
 echo "Wrappers generados en $WRAPPERS_DIR"
