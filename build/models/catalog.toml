@@ -118,6 +118,17 @@ dest_dir    = "gguf"
 description = "Microsoft Phi-3 Mini (3.8B). Excelente razonamiento para su tamaño."
 
 [[models]]
+id          = "phi-3.5-mini-3.8b-chat-q4"
+name        = "Microsoft Phi-3.5 Mini 3.8B Instruct Q4_K_M"
+type        = "chat"
+hf_repo     = "bartowski/Phi-3.5-mini-instruct-GGUF"
+hf_file     = "Phi-3.5-mini-instruct-Q4_K_M.gguf"
+size_gb     = 2.4
+ram_gb      = 5
+dest_dir    = "gguf"
+description = "Phi-3.5 Mini (3.8B). Evolución de Phi-3 con mejor razonamiento. Puente generacional entre Phi-3 y Phi-4."
+
+[[models]]
 id          = "phi4-mini-3.8b-chat-q4"
 name        = "Microsoft Phi-4 Mini Instruct 3.8B Q4_K_M"
 type        = "chat"
@@ -149,6 +160,39 @@ size_gb     = 1.6
 ram_gb      = 3
 dest_dir    = "gguf"
 description = "Google Gemma 2 (2B). Muy buena calidad para su tamaño."
+
+[[models]]
+id          = "gemma3-4b-chat-q4"
+name        = "Google Gemma 3 4B Instruct Q4_K_M"
+type        = "chat"
+hf_repo     = "ggml-org/gemma-3-4b-it-GGUF"
+hf_file     = "gemma-3-4b-it-Q4_K_M.gguf"
+size_gb     = 2.5
+ram_gb      = 6
+dest_dir    = "gguf"
+description = "Gemma 3 4B de Google. Multimodal (texto + imagen), 128K contexto, 140+ idiomas. Excelente calidad para 4B."
+
+[[models]]
+id          = "gemma4-e2b-chat-q4"
+name        = "Google Gemma 4 E2B Instruct Q4_K_M"
+type        = "chat"
+hf_repo     = "unsloth/gemma-4-E2B-it-GGUF"
+hf_file     = "gemma-4-E2B-it-Q4_K_M.gguf"
+size_gb     = 3.1
+ram_gb      = 6
+dest_dir    = "gguf"
+description = "Gemma 4 E2B (5.1B total, 2.3B efectivos). Última generación. Audio, imagen, razonamiento, 128K contexto."
+
+[[models]]
+id          = "gemma4-e4b-chat-q4"
+name        = "Google Gemma 4 E4B Instruct Q4_K_M"
+type        = "chat"
+hf_repo     = "unsloth/gemma-4-E4B-it-GGUF"
+hf_file     = "gemma-4-E4B-it-Q4_K_M.gguf"
+size_gb     = 5.0
+ram_gb      = 8
+dest_dir    = "gguf"
+description = "Gemma 4 E4B (8B total, 4.5B efectivos). Máxima calidad para CPU en 16 GB. Audio, imagen, razonamiento avanzado."
 
 [[models]]
 id          = "granite3.3-2b-chat-q4"
