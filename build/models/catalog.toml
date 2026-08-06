@@ -323,6 +323,39 @@ ram_gb      = 1
 dest_dir    = "embeddings"
 description = "BGE-Small de BAAI/Alibaba Cloud. Muy ligero, ideal para búsqueda semántica."
 
+[[models]]
+id          = "bekko-embed-v1-q8"
+name        = "bekko-embedding v1 a8m Q8_0"
+type        = "embedding"
+hf_repo     = "hotchpotch/bekko-embedding-v1-a8m-GGUF"
+hf_file     = "bekko-embedding-v1-a8m-Q8_0.gguf"
+size_gb     = 0.12
+ram_gb      = 1
+dest_dir    = "embeddings"
+description = "Ultra-compacto (7.7M params activos, ModernBERT). 384 dims, 8192 ctx, 100+ idiomas. Ideal para CPU y Raspberry Pi."
+
+[[models]]
+id          = "ml-embed-0.6b-q4"
+name        = "ML-Embed 0.6B Q4_K_M"
+type        = "embedding"
+hf_repo     = "mradermacher/ML-Embed-0.6B-GGUF"
+hf_file     = "ML-Embed-0.6B-Q4_K_M.gguf"
+size_gb     = 0.4
+ram_gb      = 1
+dest_dir    = "embeddings"
+description = "Modelo de embeddings basado en Qwen3 0.6B. 384 dims, buena calidad para retrieval multilingüe."
+
+[[models]]
+id          = "qwen3-embed-0.6b-q8"
+name        = "Qwen3-Embedding 0.6B Q8_0"
+type        = "embedding"
+hf_repo     = "Qwen/Qwen3-Embedding-0.6B-GGUF"
+hf_file     = "Qwen3-Embedding-0.6B-Q8_0.gguf"
+size_gb     = 0.64
+ram_gb      = 2
+dest_dir    = "embeddings"
+description = "Qwen3-Embedding oficial (0.6B, Q8_0). 1024 dims configurables (32-1024), 32K ctx, 100+ idiomas, #1 en MTEB para su tamaño."
+
 # -----------------------------------------------------------------------------
 # Multimodal — modelos con capacidad de visión + lenguaje
 # -----------------------------------------------------------------------------

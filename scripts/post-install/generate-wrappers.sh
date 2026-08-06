@@ -28,7 +28,7 @@ cat > "$WRAPPERS_DIR/start-server.sh" << 'WRAPPER'
 # Para desactivar GPU: NGL=0 start-server.sh ...
 set -euo pipefail
 MODEL="${1:?Especifica la ruta al modelo .gguf}"
-PORT="${2:-8080}"
+PORT="${2:-43110}"
 shift || true
 shift || true
 THREADS="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
@@ -86,5 +86,36 @@ else
     sed -i '/#__GPU_NGL_PLACEHOLDER__/d' "$WRAPPERS_DIR/bench.sh"
 fi
 chmod 755 "$WRAPPERS_DIR/bench.sh"
+
+# --- start-server-embedding.sh -------------------------------------------------
+cat > "$WRAPPERS_DIR/start-server-embedding.sh" << 'WRAPPER'
+#!/usr/bin/env bash
+# Inicia llama-server en modo exclusivo embeddings.
+# Uso: start-server-embedding.sh <ruta-modelo.gguf> [puerto] [args-extra...]
+#   POOLING=last start-server-embedding.sh ...  → cambia pooling (default: mean)
+#   NGL=0 start-server-embedding.sh ...         → desactiva GPU
+set -euo pipefail
+MODEL="${1:?Especifica la ruta al modelo .gguf}"
+PORT="${2:-43111}"
+shift || true; shift || true
+THREADS="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
+exec "/opt/llama.cpp/current/bin/llama-server" \
+  -m "$MODEL" \
+  --host 0.0.0.0 \
+  --port "$PORT" \
+#__GPU_NGL_PLACEHOLDER__
+  --embeddings \
+  --pooling "${POOLING:-mean}" \
+  -t "$THREADS" \
+  "$@"
+WRAPPER
+
+# ── Inyectar -ngl si GPU detectada ──────────────────────────────────────────
+if [ -n "$GPU_NGL_LINE" ]; then
+    sed -i "s|#__GPU_NGL_PLACEHOLDER__|${GPU_NGL_LINE}|" "$WRAPPERS_DIR/start-server-embedding.sh"
+else
+    sed -i '/#__GPU_NGL_PLACEHOLDER__/d' "$WRAPPERS_DIR/start-server-embedding.sh"
+fi
+chmod 755 "$WRAPPERS_DIR/start-server-embedding.sh"
 
 echo "Wrappers generados en $WRAPPERS_DIR"
