@@ -36,7 +36,7 @@ endif
 ## Diagnóstico de GPU
 debug-gpu:
 	$(call log_info,=== GPU ===)
-	@python3 scripts/commons/detect-gpu.py
+	@python3 scripts/commons/detect_gpu.py
 
 
 ## Estado de binarios instalados

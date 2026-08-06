@@ -134,7 +134,7 @@ chat model ngl="99":
 
 # Diagnóstico de GPU y backends de aceleración soportados
 gpu-info:
-    @python3 scripts/commons/detect-gpu.py
+    @python3 scripts/commons/detect_gpu.py
 
 
 # Ejecuta benchmark sobre el modelo especificado

@@ -229,8 +229,8 @@ def cmake_flags_from_detection(det: dict) -> str:
             flags.append("-DGGML_VULKAN=ON")
         elif rec_backend == "GGML_CUDA":
             flags.append("-DGGML_CUDA=ON")
-        elif rec_backend == "GGML_HIPBLAS":
-            flags.append("-DGGML_HIPBLAS=ON")
+        elif rec_backend == "GGML_HIP":
+            flags.append("-DGGML_HIP=ON")
     except Exception:
         pass
 

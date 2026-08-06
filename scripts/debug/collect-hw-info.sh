@@ -115,8 +115,8 @@ apt_packages = ["build-essential", "cmake", "git", "libopenblas-dev", "libssl-de
 
 EOF
 
-if command -v python3 &>/dev/null && [ -f "$(dirname "$0")/../commons/detect-gpu.py" ]; then
-    python3 "$(dirname "$0")/../commons/detect-gpu.py" --toml
+if command -v python3 &>/dev/null && [ -f "$(dirname "$0")/../commons/detect_gpu.py" ]; then
+    python3 "$(dirname "$0")/../commons/detect_gpu.py" --toml
 fi
 
 

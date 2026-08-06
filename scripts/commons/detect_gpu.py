@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-detect-gpu.py — Detección automática de GPU y backends de aceleración para llama.cpp
+detect_gpu.py — Detección automática de GPU y backends de aceleración para llama.cpp
 
 Detecta la presencia de GPUs integradas (Intel HD Graphics / Iris / Arc), GPUs discretas
 (NVIDIA, AMD) y soporte de drivers para Vulkan, CUDA, ROCm y Metal.
 
 Uso:
-  python3 scripts/commons/detect-gpu.py
-  python3 scripts/commons/detect-gpu.py --json
-  python3 scripts/commons/detect-gpu.py --toml
+  python3 scripts/commons/detect_gpu.py
+  python3 scripts/commons/detect_gpu.py --json
+  python3 scripts/commons/detect_gpu.py --toml
 """
 
 import sys
@@ -122,7 +122,7 @@ def detect_linux_gpu() -> Dict[str, Any]:
             gpu_info["vendor"] = "AMD"
             if shutil.which("rocm-smi") or shutil.which("hipconfig"):
                 gpu_info["rocm_supported"] = True
-                gpu_info["backend_recommended"] = "GGML_HIPBLAS"
+                gpu_info["backend_recommended"] = "GGML_HIP"
             elif vulkan_ok:
                 gpu_info["backend_recommended"] = "GGML_VULKAN"
         else:
