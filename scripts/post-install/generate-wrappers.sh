@@ -117,6 +117,15 @@ _check_intel_old_gpu() {
     return 1
 }
 
+_check_opencl_available() {
+    if command -v clinfo >/dev/null 2>&1 && clinfo --list 2>/dev/null | grep -qi "GPU"; then
+        return 0
+    fi
+    [ -e /usr/lib/x86_64-linux-gnu/libOpenCL.so ] && return 0
+    [ -e /usr/lib64/libOpenCL.so ] && return 0
+    return 1
+}
+
 # ── Parseo de flags (+ retrocompatibilidad posicional) ────────────────────
 MODEL=""
 PORT=""
@@ -158,9 +167,13 @@ NGL="${LLAMA_NGL:-${NGL:-$DEFAULT_NGL}}"
 
 # ── Runtime GPU validation: Intel Gen7- → force NGL=0 ────────────────────
 if [ "$NGL" -gt 0 ] && _check_intel_old_gpu; then
-    _llama_warn "GPU Intel Gen7 o anterior detectada — no compatible con Vulkan"
-    _llama_warn "Forzando NGL=0 (solo CPU). Usa LLAMA_NGL=0 para silenciar."
-    NGL=0
+    if _check_opencl_available; then
+        _llama_log "GPU Intel Gen7 detectada — usando OpenCL (Vulkan no compatible)"
+    else
+        _llama_warn "GPU Intel Gen7 detectada — sin OpenCL, forzando NGL=0"
+        _llama_warn "Instalar: sudo apt install -y ocl-icd-opencl-dev clinfo mesa-opencl-icd"
+        NGL=0
+    fi
 fi
 
 # ── Detección dinámica ────────────────────────────────────────────────────
@@ -329,6 +342,15 @@ _check_intel_old_gpu() {
     return 1
 }
 
+_check_opencl_available() {
+    if command -v clinfo >/dev/null 2>&1 && clinfo --list 2>/dev/null | grep -qi "GPU"; then
+        return 0
+    fi
+    [ -e /usr/lib/x86_64-linux-gnu/libOpenCL.so ] && return 0
+    [ -e /usr/lib64/libOpenCL.so ] && return 0
+    return 1
+}
+
 # ── Parseo de flags (+ retrocompatibilidad posicional) ────────────────────
 MODEL=""
 PORT=""
@@ -371,9 +393,13 @@ POOLING="${POOLING:-$DEFAULT_POOLING}"
 
 # ── Runtime GPU validation: Intel Gen7- → force NGL=0 ────────────────────
 if [ "$NGL" -gt 0 ] && _check_intel_old_gpu; then
-    _llama_warn "GPU Intel Gen7 o anterior detectada — no compatible con Vulkan"
-    _llama_warn "Forzando NGL=0 (solo CPU). Usa LLAMA_NGL=0 para silenciar."
-    NGL=0
+    if _check_opencl_available; then
+        _llama_log "GPU Intel Gen7 detectada — usando OpenCL (Vulkan no compatible)"
+    else
+        _llama_warn "GPU Intel Gen7 detectada — sin OpenCL, forzando NGL=0"
+        _llama_warn "Instalar: sudo apt install -y ocl-icd-opencl-dev clinfo mesa-opencl-icd"
+        NGL=0
+    fi
 fi
 
 # ── Detección dinámica ────────────────────────────────────────────────────

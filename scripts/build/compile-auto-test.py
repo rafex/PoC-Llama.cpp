@@ -129,6 +129,25 @@ def vulkan_instructions_section() -> None:
             print(f"  {CYAN}{missing_cmd}{RESET}")
         print(f"\n  Luego ejecuta  {CYAN}make compile-auto{RESET}  (se añadirá -DGGML_VULKAN=ON automáticamente)")
 
+    # OpenCL para GPUs Intel antiguas (Gen7-)
+    ocl_info = info.get("opencl_packages", {})
+    if ocl_info:
+        print(f"\n  {BOLD}OpenCL (alternativa para GPU Intel Gen7-):{RESET}")
+        ocl_all = True
+        for pkg_name in sorted(ocl_info.keys()):
+            pd = ocl_info[pkg_name]
+            if pd["installed"]:
+                print(f"  {GREEN}✓{RESET} {pkg_name:<24} {DIM}({pd['role']}){RESET}")
+            else:
+                print(f"  {RED}✗{RESET} {pkg_name:<24} {DIM}({pd['role']}){RESET}")
+                ocl_all = False
+        if ocl_all:
+            print(f"  {GREEN}✓ OpenCL disponible — GGML_OPENCL=ON se añadirá automáticamente{RESET}")
+        else:
+            ocl_cmd = run([sys.executable, str(DETECT_GPU), "--opencl-missing"])
+            if ocl_cmd:
+                print(f"  {CYAN}{ocl_cmd}{RESET}")
+
 
 def profile_section(forced_profile: str = "") -> None:
     section("Match de perfil TOML")

@@ -273,6 +273,8 @@ def cmake_flags_from_detection(det: dict) -> str:
             flags.append("-DGGML_CUDA=ON")
         elif rec_backend == "GGML_HIP" and gpu_info.get("rocm_supported"):
             flags.append("-DGGML_HIP=ON")
+        elif rec_backend == "GGML_OPENCL" and gpu_info.get("opencl_supported"):
+            flags.append("-DGGML_OPENCL=ON")
     except Exception:
         pass
 

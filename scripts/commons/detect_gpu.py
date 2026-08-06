@@ -10,9 +10,12 @@ Uso:
   python3 scripts/commons/detect_gpu.py --json
   python3 scripts/commons/detect_gpu.py --toml
   python3 scripts/commons/detect_gpu.py --has-vulkan-sdk   # exit 0/1
-  python3 scripts/commons/detect_gpu.py --has-gpu-sdk      # exit 0 si hay GPU (Vulkan/Metal/CUDA/ROCm)
+  python3 scripts/commons/detect_gpu.py --has-opencl-sdk   # exit 0/1
+  python3 scripts/commons/detect_gpu.py --has-gpu-sdk      # exit 0 si hay GPU (Vulkan/Metal/CUDA/ROCm/OpenCL)
   python3 scripts/commons/detect_gpu.py --vulkan-override   # emite -DGGML_VULKAN=ON o vacío
-  python3 scripts/commons/detect_gpu.py --missing           # lista paquetes faltantes
+  python3 scripts/commons/detect_gpu.py --opencl-override   # emite -DGGML_OPENCL=ON o vacío
+  python3 scripts/commons/detect_gpu.py --missing           # lista paquetes Vulkan faltantes
+  python3 scripts/commons/detect_gpu.py --opencl-missing    # lista paquetes OpenCL faltantes
 """
 
 import sys
@@ -38,6 +41,12 @@ _VULKAN_DEBIAN_PKGS: List[Dict[str, str]] = [
 # Paquetes debian requeridos para compilación. Se marcan como faltantes
 # si ninguno de los dos (glslang-tools o glslc) provee el binario.
 _VULKAN_COMPILER_PKGS = {"glslang-tools", "glslc"}
+
+_OPENCL_DEBIAN_PKGS: List[Dict[str, str]] = [
+    {"pkg": "ocl-icd-opencl-dev", "role": "headers + loader OpenCL (compilación)"},
+    {"pkg": "clinfo",             "role": "info dispositivos (diagnóstico)"},
+    {"pkg": "mesa-opencl-icd",    "role": "driver Intel/AMD (runtime)"},
+]
 
 
 def run_command(cmd: List[str]) -> str:
@@ -107,6 +116,34 @@ def _intel_gen_too_old(gpu_desc: str) -> bool:
             return True
     return False
 
+def _check_opencl() -> Dict[str, Any]:
+    has_clinfo = shutil.which("clinfo") is not None
+    has_headers = os.path.exists("/usr/include/CL/cl.h") or os.path.exists("/usr/include/CL/opencl.h")
+    has_lib = os.path.exists("/usr/lib/x86_64-linux-gnu/libOpenCL.so") or os.path.exists("/usr/lib64/libOpenCL.so")
+
+    packages = {}
+    missing = []
+    for entry in _OPENCL_DEBIAN_PKGS:
+        pkg = entry["pkg"]
+        installed = _check_debian_pkg(pkg)
+        packages[pkg] = {"installed": installed, "role": entry["role"]}
+        if not installed:
+            missing.append(pkg)
+
+    gpu_count = 0
+    if has_clinfo:
+        out = run_command(["clinfo", "--list"])
+        for line in out.splitlines():
+            if "GPU" in line:
+                gpu_count += 1
+
+    return {
+        "opencl_supported": (has_clinfo or has_lib) and has_headers,
+        "opencl_packages": packages,
+        "opencl_missing": missing,
+        "opencl_gpu_count": gpu_count,
+    }
+
 def detect_macos_gpu() -> Dict[str, Any]:
     gpu_info = {
         "vendor": "Apple",
@@ -114,6 +151,9 @@ def detect_macos_gpu() -> Dict[str, Any]:
         "vulkan_supported": False,
         "vulkan_packages": {},
         "vulkan_missing": [],
+        "opencl_supported": False,
+        "opencl_packages": {},
+        "opencl_missing": [],
         "cuda_supported": False,
         "rocm_supported": False,
         "metal_supported": True,
@@ -136,6 +176,9 @@ def detect_linux_gpu() -> Dict[str, Any]:
         "vulkan_supported": False,
         "vulkan_packages": {},
         "vulkan_missing": [],
+        "opencl_supported": False,
+        "opencl_packages": {},
+        "opencl_missing": [],
         "cuda_supported": False,
         "rocm_supported": False,
         "metal_supported": False,
@@ -215,7 +258,14 @@ def detect_linux_gpu() -> Dict[str, Any]:
             gpu_info["vendor"] = "Intel"
             if _intel_gen_too_old(first_gpu):
                 gpu_info["vulkan_supported"] = False
-                gpu_info["backend_recommended"] = "CPU"
+                ocl = _check_opencl()
+                gpu_info["opencl_supported"] = ocl["opencl_supported"]
+                gpu_info["opencl_packages"] = ocl["opencl_packages"]
+                gpu_info["opencl_missing"] = ocl["opencl_missing"]
+                if ocl["opencl_supported"]:
+                    gpu_info["backend_recommended"] = "GGML_OPENCL"
+                else:
+                    gpu_info["backend_recommended"] = "CPU"
             elif vulkan_ok:
                 gpu_info["backend_recommended"] = "GGML_VULKAN"
             else:
@@ -247,6 +297,9 @@ def get_gpu_info() -> Dict[str, Any]:
             "vulkan_supported": False,
             "vulkan_packages": {},
             "vulkan_missing": [],
+            "opencl_supported": False,
+            "opencl_packages": {},
+            "opencl_missing": [],
             "cuda_supported": False,
             "rocm_supported": False,
             "metal_supported": False,
@@ -264,9 +317,16 @@ def main():
         else:
             sys.exit(1)
 
+    if "--has-opencl-sdk" in sys.argv:
+        if info["opencl_supported"]:
+            sys.exit(0)
+        else:
+            sys.exit(1)
+
     if "--has-gpu-sdk" in sys.argv:
         if (info["vulkan_supported"] or info["cuda_supported"] or
-                info["metal_supported"] or info.get("rocm_supported", False)):
+                info["metal_supported"] or info.get("rocm_supported", False) or
+                info.get("opencl_supported", False)):
             sys.exit(0)
         else:
             sys.exit(1)
@@ -280,8 +340,19 @@ def main():
                 print("-DGGML_VULKAN=ON")
         sys.exit(0)
 
+    if "--opencl-override" in sys.argv:
+        if info["opencl_supported"]:
+            print("-DGGML_OPENCL=ON")
+        sys.exit(0)
+
     if "--missing" in sys.argv:
         missing = info.get("vulkan_missing", [])
+        if missing:
+            print(f"sudo apt-get install -y {' '.join(missing)}")
+        sys.exit(0)
+
+    if "--opencl-missing" in sys.argv:
+        missing = info.get("opencl_missing", [])
         if missing:
             print(f"sudo apt-get install -y {' '.join(missing)}")
         sys.exit(0)
@@ -332,6 +403,7 @@ def main():
 
     print(f"  {bold}Soporte CUDA:{reset}         {green + 'SÍ' + reset if info['cuda_supported'] else 'NO'}")
     print(f"  {bold}Soporte ROCm:{reset}         {green + 'SÍ' + reset if info['rocm_supported'] else 'NO'}")
+    print(f"  {bold}Soporte OpenCL:{reset}       {green + 'SÍ' + reset if info.get('opencl_supported') else yellow + 'NO' + reset}")
     print(f"  {bold}Soporte Metal:{reset}        {green + 'SÍ' + reset if info['metal_supported'] else 'NO'}")
     print(f"  {bold}Backend Sugerido:{reset}     {cyan}{info['backend_recommended']}{reset}")
 
