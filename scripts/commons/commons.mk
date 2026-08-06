@@ -25,29 +25,9 @@ LLAMA_REPO_URL  := https://github.com/ggerganov/llama.cpp.git
 LLAMA_SRC_DIR   := $(CURDIR)/build/llama.cpp
 LLAMA_BUILD_DIR := $(LLAMA_SRC_DIR)/build-out
 
-# --- Detección de capacidades CPU (macOS / Linux) ----------------------------
-ifeq ($(OS),Darwin)
-  HAS_METAL := true
-  CMAKE_PLATFORM_FLAGS := -DGGML_METAL=ON -DGGML_BLAS=OFF
-else
-  HAS_METAL := false
-  HAS_AVX2  := $(shell echo "$(CPU_FLAGS)" | grep -c avx2 || true)
-  HAS_AVX   := $(shell echo "$(CPU_FLAGS)" | grep -c ' avx ' || true)
-  ifeq ($(HAS_AVX2),1)
-    CMAKE_PLATFORM_FLAGS := -DGGML_AVX2=ON -DGGML_AVX=ON -DGGML_F16C=ON -DGGML_FMA=ON
-  else ifeq ($(HAS_AVX),1)
-    CMAKE_PLATFORM_FLAGS := -DGGML_AVX=ON -DGGML_AVX2=OFF
-  else
-    CMAKE_PLATFORM_FLAGS := -DGGML_NATIVE=OFF
-  endif
-endif
+# --- Detección de capacidades CPU y GPU ---------------------------------------
+CMAKE_COMMON_FLAGS := $(shell python3 scripts/build/detect-profile.py --flags 2>/dev/null || echo "-DCMAKE_BUILD_TYPE=Release") -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=ON
 
-# --- Flags cmake comunes ------------------------------------------------------
-CMAKE_COMMON_FLAGS := \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DLLAMA_BUILD_TESTS=OFF \
-  -DLLAMA_BUILD_EXAMPLES=ON \
-  $(CMAKE_PLATFORM_FLAGS)
 
 # --- Colores para output ------------------------------------------------------
 # Secuencias ANSI reales (via shell para que $(info ...) las interprete)
