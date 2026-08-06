@@ -26,12 +26,15 @@ from typing import Dict, Any, List, Optional
 # Orden: requeridos para compilar, luego opcionales
 _VULKAN_DEBIAN_PKGS: List[Dict[str, str]] = [
     {"pkg": "libvulkan-dev",       "role": "headers + loader (compilación)"},
-    {"pkg": "glslc",               "role": "compilador glslc (compilación)"},
+    {"pkg": "glslang-tools",       "role": "herramientas glslang (compilación)"},
+    {"pkg": "glslc",               "role": "compilador glslc (Debian 13+)"},
     {"pkg": "mesa-vulkan-drivers", "role": "driver Intel/AMD (runtime)"},
     {"pkg": "vulkan-tools",        "role": "vulkaninfo (diagnóstico, opcional)"},
 ]
 
-_VULKAN_REQUIRED_PKGS = {"libvulkan-dev", "glslc"}
+# Paquetes debian requeridos para compilación. Se marcan como faltantes
+# si ninguno de los dos (glslang-tools o glslc) provee el binario.
+_VULKAN_COMPILER_PKGS = {"glslang-tools", "glslc"}
 
 
 def run_command(cmd: List[str]) -> str:
@@ -52,7 +55,7 @@ def _check_debian_pkg(pkg: str) -> bool:
 def _detect_vulkan_packages() -> Dict[str, Any]:
     pkgs_status = {}
     missing = []
-    missing_required = []
+
     for entry in _VULKAN_DEBIAN_PKGS:
         pkg = entry["pkg"]
         installed = _check_debian_pkg(pkg)
@@ -62,8 +65,19 @@ def _detect_vulkan_packages() -> Dict[str, Any]:
         }
         if not installed:
             missing.append(pkg)
-            if pkg in _VULKAN_REQUIRED_PKGS:
-                missing_required.append(pkg)
+
+    libdev_ok = pkgs_status.get("libvulkan-dev", {}).get("installed", False)
+    compiler_ok = (
+        pkgs_status.get("glslang-tools", {}).get("installed", False) or
+        pkgs_status.get("glslc", {}).get("installed", False)
+    )
+
+    missing_required = []
+    if not libdev_ok:
+        missing_required.append("libvulkan-dev")
+    if not compiler_ok:
+        missing_required.append("glslc")
+
     return {
         "packages": pkgs_status,
         "missing": missing,
@@ -146,18 +160,15 @@ def detect_linux_gpu() -> Dict[str, Any]:
             has_nvidia = True
 
     # 3. Check Vulkan (Universal para Intel HD / Iris / Arc / AMD / NVIDIA)
-    #    Requiere SDK completo: headers + glslc (cmake compila shaders).
-    #    En Debian: verifica paquetes vía dpkg-query.
+    #    Fuente de verdad: binario glslc + headers vulkan.h (no dpkg-query).
+    #    dpkg-query es solo informativo para mostrar qué instalar.
     vulkan_pkg_info = _detect_vulkan_packages()
     gpu_info["vulkan_packages"] = vulkan_pkg_info["packages"]
     gpu_info["vulkan_missing"] = vulkan_pkg_info["missing"]
-    vulkan_sdk_ok = vulkan_pkg_info["all_required_installed"]
 
-    # Fallback: si dpkg-query no está disponible, usar detección binaria
-    if not vulkan_sdk_ok:
-        has_glslc = shutil.which("glslc") is not None
-        has_headers = os.path.exists("/usr/include/vulkan/vulkan.h")
-        vulkan_sdk_ok = has_glslc and has_headers
+    has_glslc = shutil.which("glslc") is not None
+    has_headers = os.path.exists("/usr/include/vulkan/vulkan.h")
+    vulkan_sdk_ok = has_glslc and has_headers
 
     vulkan_ok = False
     if vulkan_sdk_ok:
