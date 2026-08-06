@@ -3,7 +3,8 @@
 # Incluido por el Makefile raíz.
 # =============================================================================
 
-.PHONY: model-list model-list-smart model-download model-download-smart model-download-id
+.PHONY: model-list model-list-smart model-download model-download-smart model-download-id model-quantize
+
 
 MODEL_DOWNLOAD    := scripts/models/model-download.py
 HARDWARE_SMART    := scripts/models/hardware-smart.py
@@ -51,3 +52,8 @@ ifndef ID
 	$(error Especifica ID=<id-del-modelo>. Ver 'make model-list')
 endif
 	@python3 $(MODEL_DOWNLOAD) --id $(ID)
+
+## Cuantización local de modelos descargados
+model-quantize:
+	@python3 scripts/models/quantize.py
+

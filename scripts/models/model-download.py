@@ -103,23 +103,49 @@ def extra_files(model: dict) -> list[str]:
     return model.get("hf_extra_files", [])
 
 
-def download_file(repo: str, filename: str, dest: Path) -> bool:
-    """Descarga un archivo individual vía HTTP directo (wget o curl).
+import hashlib
 
-    Usa -c (wget) / -C - (curl) para reanudar descargas interrumpidas.
-    No usa llama-cli: ese comando carga el modelo en RAM antes de descargarlo.
-    """
+def verify_sha256(filepath: Path, expected_hash: str) -> bool:
+    """Verifica el hash SHA256 de un archivo."""
+    print(c("cyan", f"[INFO] Verificando hash SHA256 de {filepath.name}..."))
+    sha = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        while chunk := f.read(8192 * 1024):
+            sha.update(chunk)
+    calculated = sha.hexdigest().lower()
+    if calculated == expected_hash.lower():
+        print(c("green", f"[OK]   Hash SHA256 verificado correctamente."))
+        return True
+    else:
+        print(c("red", f"[ERROR] Error de integridad SHA256 en {filepath.name}!"))
+        print(c("red", f"        Esperado:   {expected_hash}"))
+        print(c("red", f"        Calculado:  {calculated}"))
+        return False
+
+
+def download_file(repo: str, filename: str, dest: Path) -> bool:
+    """Descarga un archivo individual vía HTTP directo (wget o curl) con soporte HF_TOKEN."""
     if dest.exists():
         print(c("yellow", f"[SKIP]  Ya existe: {dest.name}"))
         return True
 
     url = HF_BASE_URL.format(repo=repo, file=filename)
+    hf_token = os.environ.get("HF_TOKEN")
+    if hf_token:
+        print(c("green", f"[AUTH] Usando token HF_TOKEN para descarga autenticada."))
+
     print(c("cyan", f"[INFO] {filename}  ←  {url}"))
 
     if shutil.which("wget"):
-        cmd = ["wget", "--progress=bar:force", "-c", "-O", str(dest), url]
+        cmd = ["wget", "--progress=bar:force", "-c", "-O", str(dest)]
+        if hf_token:
+            cmd.extend(["--header", f"Authorization: Bearer {hf_token}"])
+        cmd.append(url)
     elif shutil.which("curl"):
-        cmd = ["curl", "-L", "--progress-bar", "-C", "-", "-o", str(dest), url]
+        cmd = ["curl", "-L", "--progress-bar", "-C", "-", "-o", str(dest)]
+        if hf_token:
+            cmd.extend(["-H", f"Authorization: Bearer {hf_token}"])
+        cmd.append(url)
     else:
         print(c("red", "[ERROR] Se necesita wget o curl para descargar."))
         print(c("red", "        sudo apt-get install -y wget"))
@@ -132,6 +158,7 @@ def download_file(repo: str, filename: str, dest: Path) -> bool:
             dest.unlink()
         return False
     return True
+
 
 
 def current_user() -> str:
@@ -173,8 +200,15 @@ def download_model(model: dict) -> None:
         if not download_file(model["hf_repo"], model["hf_file"], dest):
             print(c("red", f"[ERROR] Falló la descarga de {model['hf_file']}"))
             sys.exit(1)
+
+        if "sha256" in model:
+            if not verify_sha256(dest, model["sha256"]):
+                dest.unlink()
+                sys.exit(1)
+
         size_mb = dest.stat().st_size / (1024 * 1024)
         print(c("green", f"[OK]   {dest.name}  ({size_mb:.0f} MB)"))
+
 
     # Archivos extra (ej: mmproj para multimodal)
     for extra in extra_files(model):

@@ -17,3 +17,8 @@ test-versions:
 # Smoke test: inferencia rápida con el primer modelo disponible
 test-smoke:
     make test-smoke
+
+# Prueba de API HTTP OpenAI (/health y /v1/chat/completions)
+test-api:
+    make test-api
+

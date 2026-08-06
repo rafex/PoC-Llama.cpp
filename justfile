@@ -141,13 +141,34 @@ gpu-info:
 bench model:
     llama-bench -m "{{model}}"
 
-# =============================================================================
-# Utilidades
-# =============================================================================
+# Muestra el estado del sistema, modelos instalados y servidor activo
+status:
+    @python3 scripts/commons/status.py
 
-# Lista modelos .gguf disponibles en /srv/models
-models:
-    @find /srv/models -name "*.gguf" 2>/dev/null | sort || echo "(sin modelos en /srv/models)"
+# Monitoreo en tiempo real del servidor llama-server y recursos (watch mode)
+top:
+    @python3 scripts/commons/status.py --watch
+
+# Cuantización local de un modelo .gguf usando llama-quantize
+quantize:
+    @python3 scripts/models/quantize.py
+
+
+# Crea e instala el servicio del sistema (systemd en Linux / launchd en macOS) para el modelo dado
+service-install model port="8080" ngl="99":
+    @python3 scripts/post-install/service-generator.py --install "{{model}}" --port "{{port}}" --ngl "{{ngl}}"
+
+# Consulta el estado del servicio daemon llama-server
+service-status:
+    @python3 scripts/post-install/service-generator.py --status
+
+# Detiene el servicio daemon llama-server
+service-stop:
+    @python3 scripts/post-install/service-generator.py --stop
+
+# Desinstala y remueve el servicio daemon llama-server
+service-uninstall:
+    @python3 scripts/post-install/service-generator.py --uninstall
 
 # Cambia la versión activa de llama.cpp (uso: just switch-version 2026.05.18-x86_64)
 switch-version version:
@@ -155,3 +176,5 @@ switch-version version:
     sudo ln -sfn "/opt/llama.cpp/versions/{{version}}" /opt/llama.cpp/current
     @just install-symlinks
     @echo "[OK] Versión activa: $(readlink /opt/llama.cpp/current)"
+
+

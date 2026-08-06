@@ -9,7 +9,8 @@
 #   test-smoke        — inferencia rápida si hay algún modelo en /srv/models
 # =============================================================================
 
-.PHONY: test test-binaries test-versions test-smoke
+.PHONY: test test-binaries test-versions test-smoke test-api
+
 
 # Binarios a verificar en el test suite
 # Núcleo + multimodal: se testean con --version
@@ -83,3 +84,43 @@ test-smoke:
 	  rm -f "$$tmpout"; \
 	  exit 1; \
 	fi
+
+## Prueba de integración de API HTTP OpenAI (/health y /v1/chat/completions)
+test-api:
+	$(call log_info,=== Prueba: API HTTP OpenAI (llama-server) ===)
+	@model=$$(find $(MODELS_DIR)/gguf -name "*.gguf" 2>/dev/null | sort | head -1); \
+	if [ -z "$$model" ]; then \
+	  printf "$(YELLOW)[SKIP]$(RESET)  Sin modelos en $(MODELS_DIR)/gguf — descarga uno primero con 'just model-download'\n"; \
+	  exit 0; \
+	fi; \
+	port=8089; \
+	printf "$(CYAN)[INFO]$(RESET)  Iniciando llama-server de prueba en puerto $$port...\n"; \
+	llama-server -m "$$model" --port $$port --host 127.0.0.1 -c 512 -n 16 >/dev/null 2>&1 & \
+	pid=$$!; \
+	cleanup() { kill -9 $$pid 2>/dev/null || true; }; \
+	trap cleanup EXIT; \
+	ready=0; \
+	for i in {1..30}; do \
+	  if curl -s "http://127.0.0.1:$$port/health" | grep -q '"status"'; then \
+	    ready=1; break; \
+	  fi; \
+	  sleep 0.5; \
+	done; \
+	if [ $$ready -eq 0 ]; then \
+	  printf "$(RED)[FAIL]$(RESET)  llama-server no respondió en http://127.0.0.1:$$port/health\n"; \
+	  cleanup; exit 1; \
+	fi; \
+	printf "$(GREEN)[PASS]$(RESET)  Endpoint /health OK\n"; \
+	printf "$(CYAN)[INFO]$(RESET)  Enviando petición a /v1/chat/completions...\n"; \
+	res=$$(curl -s -X POST "http://127.0.0.1:$$port/v1/chat/completions" \
+	  -H "Content-Type: application/json" \
+	  -d '{"messages":[{"role":"user","content":"Hello"}]}'); \
+	cleanup; \
+	if echo "$$res" | grep -q '"choices"'; then \
+	  printf "$(GREEN)[PASS]$(RESET)  API HTTP OpenAI respondiendo correctamente:\n"; \
+	  echo "$$res" | grep -o '"content":"[^"]*"' | head -1 | sed 's/^/         /'; \
+	else \
+	  printf "$(RED)[FAIL]$(RESET)  Respuesta de API inválida: $$res\n"; \
+	  exit 1; \
+	fi
+
