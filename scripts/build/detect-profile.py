@@ -214,10 +214,25 @@ def detect() -> dict:
 # ---------------------------------------------------------------------------
 
 def cmake_flags_from_detection(det: dict) -> str:
-    """Genera flags cmake a partir de la detección de hardware."""
+    """Genera flags cmake a partir de la detección de hardware de CPU y GPU."""
     flags = ["-DCMAKE_BUILD_TYPE=Release"]
     os_name = det.get("os", "")
     arch = det.get("arch", "")
+
+    # Detección de GPU
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent / "commons"))
+        from detect_gpu import get_gpu_info
+        gpu_info = get_gpu_info()
+        rec_backend = gpu_info.get("backend_recommended", "CPU")
+        if rec_backend == "GGML_VULKAN":
+            flags.append("-DGGML_VULKAN=ON")
+        elif rec_backend == "GGML_CUDA":
+            flags.append("-DGGML_CUDA=ON")
+        elif rec_backend == "GGML_HIPBLAS":
+            flags.append("-DGGML_HIPBLAS=ON")
+    except Exception:
+        pass
 
     if os_name == "Darwin" and det.get("has_metal"):
         flags.append("-DGGML_METAL=ON")
@@ -246,6 +261,7 @@ def cmake_flags_from_detection(det: dict) -> str:
         flags.append("-DGGML_NATIVE=ON")
 
     return " ".join(flags)
+
 
 
 # ---------------------------------------------------------------------------

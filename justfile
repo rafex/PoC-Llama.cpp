@@ -102,33 +102,40 @@ stop-server:
         echo "[INFO] No hay llama-server activo."
     fi
 
-# Inicia llama-server con el modelo especificado; solo permite uno activo
-run model port="8080":
+# Inicia llama-server con el modelo especificado y número opcional de capas GPU (ngl="99")
+run model port="8080" ngl="99":
     just stop-server
-    @echo "[INFO] Iniciando llama-server con {{model}} en puerto {{port}} ..."
+    @echo "[INFO] Iniciando llama-server con {{model}} en puerto {{port}} (capas GPU ngl={{ngl}}) ..."
     llama-server \
       -m "{{model}}" \
       --host 0.0.0.0 \
       --port {{port}} \
+      -ngl {{ngl}} \
       --jinja \
       --ctx-size 4096 \
       -n 1024 \
       -t "$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
 
 # Inicia llama-server con un modelo del catálogo por ID
-run-id id port="8080":
+run-id id port="8080" ngl="99":
     #!/usr/bin/env bash
     set -euo pipefail
     model="$(python3 scripts/models/model-download.py --path "{{id}}")"
-    just run "$model" "{{port}}"
+    just run "$model" "{{port}}" "{{ngl}}"
 
-# Inicia llama-cli en modo interactivo con el modelo especificado
-chat model:
-    @echo "[INFO] Iniciando llama-cli con {{model}} ..."
+# Inicia llama-cli en modo interactivo con el modelo especificado y capas GPU
+chat model ngl="99":
+    @echo "[INFO] Iniciando llama-cli con {{model}} (ngl={{ngl}}) ..."
     llama-cli \
       -m "{{model}}" \
+      -ngl {{ngl}} \
       --interactive \
       -c 4096
+
+# Diagnóstico de GPU y backends de aceleración soportados
+gpu-info:
+    @python3 scripts/commons/detect-gpu.py
+
 
 # Ejecuta benchmark sobre el modelo especificado
 bench model:

@@ -97,6 +97,24 @@ sve    = false    # /proc/cpuinfo: sve
 crc32  = false    # /proc/cpuinfo: crc32
 
 # =============================================================================
+# GPU — Aceleración por hardware (Vulkan, CUDA, ROCm, Metal)
+# =============================================================================
+[gpu]
+vendor              = ""       # Intel, NVIDIA, AMD, Apple
+model               = ""       # Ej: Intel HD Graphics 4000, RTX 3060, Apple M1
+vulkan_supported    = false    # GGML_VULKAN (Recomendado para iGPUs Intel HD/Iris/Arc y AMD/NVIDIA genéricos)
+cuda_supported      = false    # GGML_CUDA (NVIDIA GPUs con CUDA toolkit)
+rocm_supported      = false    # GGML_HIPBLAS (AMD GPUs con ROCm)
+metal_supported     = false    # GGML_METAL (Apple Silicon Mac)
+backend_recommended = "CPU"     # GGML_VULKAN, GGML_CUDA, GGML_HIPBLAS, GGML_METAL, CPU
+
+[cmake.flags]
+GGML_VULKAN = "OFF"            # Cambiar a ON para aceleración GPU con Vulkan (Intel HD 4000 / AMD / NVIDIA)
+GGML_CUDA   = "OFF"            # Cambiar a ON para aceleración CUDA
+GGML_METAL  = "OFF"            # Cambiar a ON para Apple Metal
+GGML_HIPBLAS= "OFF"            # Cambiar a ON para AMD ROCm
+
+# =============================================================================
 # Dependencias — herramientas necesarias para compilar
 # =============================================================================
 [dependencies]
@@ -115,16 +133,19 @@ apt_packages = [
   "libopenblas-dev",
   "libssl-dev",
   "pkg-config",
+  "libvulkan-dev",              # Requerido si GGML_VULKAN=ON
+  "vulkan-tools",               # Para verificar soporte vulkaninfo
 ]
 
 # =============================================================================
 # Notas adicionales (opcional)
 # =============================================================================
 # Si tu equipo tiene alguna particularidad, añádela aquí:
-# - GPU detectada (NVIDIA, AMD, etc.)
+# - GPU detectada (NVIDIA, AMD, Intel HD 4000, etc.)
 # - Cantidad de RAM
 # - Problemas conocidos de compilación
 # - Flags de compilación adicionales que necesites
 #
 # Ejemplo:
-#   notes = "GPU: NVIDIA RTX 3060 12GB, RAM: 32GB DDR4, OpenBLAS ya instalado"
+#   notes = "GPU: Intel HD Graphics 4000 (Vulkan ON), RAM: 16GB DDR3"
+

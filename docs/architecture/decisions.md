@@ -113,3 +113,17 @@ objdump -d $(which llama-cli) | grep -cE "shlx|shrx|sarx|rorx|pdep|pext"
 # 3. Confirmar instrucción exacta con GDB
 gdb -batch -ex "run --version" -ex "x/1i \$rip" --args llama-cli --version 2>&1
 ```
+
+## ADR-006: Detección de GPU y Aceleración Universal vía Vulkan / CUDA / Metal
+
+**Contexto:** Las GPUs integradas (como Intel HD Graphics 4000, Iris, Arc) y GPUs discretas pueden acelerar considerablemente la ejecución de modelos LLM descargando capas de la CPU a la GPU (`-ngl` / `--n-gpu-layers`).
+
+**Decisión:**
+- Crear un detector universal de GPUs (`scripts/commons/detect-gpu.py`) que evalúe disponibilidad de Vulkan, CUDA, ROCm y Metal.
+- Utilizar **Vulkan** (`GGML_VULKAN=ON`) como el backend GPU universal multiplataforma para GPUs Intel/AMD/NVIDIA sin CUDA nativo.
+- Permitir la descarga dinámica de capas GPU mediante el parámetro `ngl` en `Justfile` (`just run <model> 8080 ngl=99`).
+
+**Consecuencias:**
+- `make debug-gpu` y `just gpu-info` diagnostican rápidamente la GPU instalada y el soporte de drivers.
+- Equipos con iGPUs Intel HD Graphics 4000 o superiores pueden aprovechar aceleración gráfica mediante Vulkan.
+

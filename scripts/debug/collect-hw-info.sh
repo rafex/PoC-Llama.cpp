@@ -112,7 +112,13 @@ crc32  = $(has_flag crc32)
 commands     = ["git", "cmake", "gcc", "g++", "pkg-config"]
 pkg_config   = ["openblas", "openssl"]
 apt_packages = ["build-essential", "cmake", "git", "libopenblas-dev", "libssl-dev", "pkg-config"]
+
 EOF
+
+if command -v python3 &>/dev/null && [ -f "$(dirname "$0")/../commons/detect-gpu.py" ]; then
+    python3 "$(dirname "$0")/../commons/detect-gpu.py" --toml
+fi
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Instrucciones para el usuario

@@ -60,7 +60,9 @@ help:
 	@printf "  %-28s %s\n" "debug"            "Diagnóstico completo"
 	@printf "  %-28s %s\n" "debug-env"        "Muestra variables de entorno"
 	@printf "  %-28s %s\n" "debug-cpu"        "Capacidades CPU detectadas"
+	@printf "  %-28s %s\n" "debug-gpu"        "Diagnóstico de GPU y backends (Vulkan/CUDA/Metal)"
 	@printf "  %-28s %s\n" "debug-binaries"   "Estado de binarios instalados"
+
 	@printf "  %-28s %s\n" "debug-models"     "Modelos disponibles en /srv/models"
 	@printf "  %-28s %s\n" "check-update"     "Compara versión local vs última release de llama.cpp"
 	@printf "\n$(CYAN)Desinstalación$(RESET)\n"

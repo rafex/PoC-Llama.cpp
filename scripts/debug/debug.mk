@@ -3,10 +3,11 @@
 # Incluido por el Makefile raíz.
 # =============================================================================
 
-.PHONY: debug debug-env debug-cpu debug-binaries debug-models check-update
+.PHONY: debug debug-env debug-cpu debug-gpu debug-binaries debug-models check-update
 
 ## Muestra diagnóstico completo
-debug: debug-env debug-cpu debug-binaries debug-models
+debug: debug-env debug-cpu debug-gpu debug-binaries debug-models
+
 
 ## Variables de entorno y paths relevantes
 debug-env:
@@ -31,6 +32,12 @@ else
 	@grep -m1 "model name" /proc/cpuinfo || true
 	@grep -m1 "flags"      /proc/cpuinfo | tr ' ' '\n' | grep -iE 'avx|sse|neon|fma|bmi' | sort || true
 endif
+
+## Diagnóstico de GPU
+debug-gpu:
+	$(call log_info,=== GPU ===)
+	@python3 scripts/commons/detect-gpu.py
+
 
 ## Estado de binarios instalados
 debug-binaries:

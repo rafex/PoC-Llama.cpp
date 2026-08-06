@@ -42,6 +42,9 @@ apt_packages = [
   "libopenblas-dev",
   "libssl-dev",
   "pkg-config",
+  "libvulkan-dev",
+  "vulkan-tools",
+  "mesa-vulkan-drivers",
 ]
 
 # Flags cmake específicos del hardware.
@@ -51,5 +54,7 @@ BUILD_SHARED_LIBS    = "OFF"
 GGML_BLAS            = "ON"
 GGML_BLAS_VENDOR     = "OpenBLAS"
 GGML_METAL           = "OFF"
+GGML_VULKAN          = "OFF" # Cambiar a ON si se desea aceleración GPU con Intel HD Graphics 4000 vía Vulkan
 LLAMA_BUILD_TESTS    = "OFF"
 LLAMA_BUILD_EXAMPLES = "ON"
+
