@@ -35,8 +35,11 @@ cat > "$WRAPPERS_DIR/start-server.sh" << 'WRAPPER'
 #   -n, --n-predict <n>     Tokens a generar (default: 512)
 #   --ngl <n>               Capas GPU (default: detectado en compilación)
 #   -t, --threads <n>       Hilos (default: todos los núcleos)
-#   -v, --verbose           Muestra información de detección
-#   --                      Todo lo posterior pasa a llama-server
+#   -b, --batch-size <n>     Tamaño de lote 256|512|... (default: auto)
+#   --prompt-cache <path>    Cache de prompt (default: /tmp/llama-cache-*.cache)
+#   --no-cache               Desactiva el cache de prompt
+#   -v, --verbose            Muestra información de detección
+#   --                       Todo lo posterior pasa a llama-server
 #
 # Variables de entorno para override:
 #   LLAMA_CTX_SIZE, LLAMA_N_PREDICT, LLAMA_NGL, LLAMA_THREADS, LLAMA_VERBOSE
@@ -118,6 +121,13 @@ _check_intel_old_gpu() {
     return 1
 }
 
+_detect_batch_size() {
+    if [ "$NGL" -gt 0 ]; then echo 512
+    elif [ "$THREADS" -ge 8 ]; then echo 512
+    else echo 256
+    fi
+}
+
 # ── Parseo de flags (+ retrocompatibilidad posicional) ────────────────────
 MODEL=""
 PORT=""
@@ -125,6 +135,8 @@ NGL=""
 CTX_SIZE_ARG=""
 N_PREDICT_ARG=""
 THREADS_ARG=""
+BATCH_ARG=""
+CACHE_ARG=""
 VERBOSE=0
 PASSTHROUGH=()
 
@@ -136,6 +148,9 @@ while [[ $# -gt 0 ]]; do
         -n|--n-predict) N_PREDICT_ARG="$2"; shift 2 ;;
         --ngl)         NGL="$2"; shift 2 ;;
         -t|--threads)  THREADS_ARG="$2"; shift 2 ;;
+        -b|--batch-size) BATCH_ARG="$2"; shift 2 ;;
+        --prompt-cache) CACHE_ARG="$2"; shift 2 ;;
+        --no-cache)    CACHE_ARG="none"; shift ;;
         -v|--verbose)  VERBOSE=1; shift ;;
         --)            shift; PASSTHROUGH=("$@"); break ;;
         -*)
@@ -175,6 +190,13 @@ FREE_MEM=$(_get_free_mem_mb)
 CTX_SIZE="${LLAMA_CTX_SIZE:-${CTX_SIZE_ARG:-$(_calc_safe_ctx "$MODEL_CTX" "$TOTAL_MEM" "$FREE_MEM")}}"
 N_PREDICT="${LLAMA_N_PREDICT:-${N_PREDICT_ARG:-$DEFAULT_N_PREDICT}}"
 THREADS="${LLAMA_THREADS:-${THREADS_ARG:-$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)}}"
+BATCH="${LLAMA_BATCH_SIZE:-${BATCH_ARG:-$(_detect_batch_size)}}"
+# Prompt cache: reutiliza KV cache entre sesiones (acelera cargas repetidas)
+if [ "${CACHE_ARG:-}" = "none" ] || [ "${LLAMA_NO_CACHE:-0}" = "1" ]; then
+    CACHE=""
+else
+    CACHE="${CACHE_ARG:-/tmp/llama-cache-$(basename "$MODEL" .gguf | tr '/' '_').cache}"
+fi
 
 _llama_log "Configuración:"
 _llama_log "  Modelo:     $MODEL"
@@ -183,6 +205,8 @@ _llama_log "  Contexto:   $CTX_SIZE (máx modelo: $MODEL_CTX)"
 _llama_log "  Generación: $N_PREDICT tokens"
 _llama_log "  Capas GPU:  $NGL"
 _llama_log "  Hilos:      $THREADS"
+_llama_log "  Batch:      $BATCH"
+[ -n "$CACHE" ] && _llama_log "  Cache:      $CACHE"
 [ "$VERBOSE" = "1" ] && _llama_log "  RAM total: ${TOTAL_MEM}MB  libre: ${FREE_MEM}MB"
 [ "${#PASSTHROUGH[@]}" -gt 0 ] && _llama_log "  Args extra: ${PASSTHROUGH[*]}"
 
@@ -221,7 +245,9 @@ exec "/opt/llama.cpp/current/bin/llama-server" \
   --jinja \
   --ctx-size "$CTX_SIZE" \
   -n "$N_PREDICT" \
+  -tb "$BATCH" \
   -t "$THREADS" \
+  $( [ -n "$CACHE" ] && echo "--prompt-cache $CACHE" ) \
   "${PASSTHROUGH[@]}"
 WRAPPER
 
@@ -260,8 +286,11 @@ cat > "$WRAPPERS_DIR/start-server-embedding.sh" << 'WRAPPER'
 #   --ctx-size <n>          Tamaño de contexto (default: auto-detectado)
 #   --ngl <n>               Capas GPU (default: detectado en compilación)
 #   -t, --threads <n>       Hilos (default: todos los núcleos)
-#   -v, --verbose           Muestra información de detección
-#   --                      Todo lo posterior pasa a llama-server
+#   -b, --batch-size <n>     Tamaño de lote 256|512|... (default: auto)
+#   --prompt-cache <path>    Cache de prompt (default: /tmp/llama-cache-*.cache)
+#   --no-cache               Desactiva el cache de prompt
+#   -v, --verbose            Muestra información de detección
+#   --                       Todo lo posterior pasa a llama-server
 #
 # Variables de entorno para override:
 #   LLAMA_CTX_SIZE, LLAMA_NGL, LLAMA_THREADS, LLAMA_VERBOSE, POOLING
@@ -343,6 +372,13 @@ _check_intel_old_gpu() {
     return 1
 }
 
+_detect_batch_size() {
+    if [ "$NGL" -gt 0 ]; then echo 512
+    elif [ "$THREADS" -ge 8 ]; then echo 512
+    else echo 256
+    fi
+}
+
 # ── Parseo de flags (+ retrocompatibilidad posicional) ────────────────────
 MODEL=""
 PORT=""
@@ -350,6 +386,8 @@ NGL=""
 POOLING=""
 CTX_SIZE_ARG=""
 THREADS_ARG=""
+BATCH_ARG=""
+CACHE_ARG=""
 VERBOSE=0
 PASSTHROUGH=()
 
@@ -361,6 +399,9 @@ while [[ $# -gt 0 ]]; do
         --ctx-size)    CTX_SIZE_ARG="$2"; shift 2 ;;
         --ngl)         NGL="$2"; shift 2 ;;
         -t|--threads)  THREADS_ARG="$2"; shift 2 ;;
+        -b|--batch-size) BATCH_ARG="$2"; shift 2 ;;
+        --prompt-cache) CACHE_ARG="$2"; shift 2 ;;
+        --no-cache)    CACHE_ARG="none"; shift ;;
         -v|--verbose)  VERBOSE=1; shift ;;
         --)            shift; PASSTHROUGH=("$@"); break ;;
         -*)
@@ -400,6 +441,12 @@ FREE_MEM=$(_get_free_mem_mb)
 
 CTX_SIZE="${LLAMA_CTX_SIZE:-${CTX_SIZE_ARG:-$(_calc_safe_ctx "$MODEL_CTX" "$TOTAL_MEM" "$FREE_MEM")}}"
 THREADS="${LLAMA_THREADS:-${THREADS_ARG:-$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)}}"
+BATCH="${LLAMA_BATCH_SIZE:-${BATCH_ARG:-$(_detect_batch_size)}}"
+if [ "${CACHE_ARG:-}" = "none" ] || [ "${LLAMA_NO_CACHE:-0}" = "1" ]; then
+    CACHE=""
+else
+    CACHE="${CACHE_ARG:-/tmp/llama-cache-$(basename "$MODEL" .gguf | tr '/' '_').cache}"
+fi
 
 _llama_log "Configuración:"
 _llama_log "  Modelo:     $MODEL"
@@ -408,6 +455,8 @@ _llama_log "  Contexto:   $CTX_SIZE (máx modelo: $MODEL_CTX)"
 _llama_log "  Pooling:    $POOLING"
 _llama_log "  Capas GPU:  $NGL"
 _llama_log "  Hilos:      $THREADS"
+_llama_log "  Batch:      $BATCH"
+[ -n "$CACHE" ] && _llama_log "  Cache:      $CACHE"
 [ "$VERBOSE" = "1" ] && _llama_log "  RAM total: ${TOTAL_MEM}MB  libre: ${FREE_MEM}MB"
 [ "${#PASSTHROUGH[@]}" -gt 0 ] && _llama_log "  Args extra: ${PASSTHROUGH[*]}"
 
@@ -425,7 +474,9 @@ exec "/opt/llama.cpp/current/bin/llama-server" \
   --embeddings \
   --pooling "$POOLING" \
   --ctx-size "$CTX_SIZE" \
+  -tb "$BATCH" \
   -t "$THREADS" \
+  $( [ -n "$CACHE" ] && echo "--prompt-cache $CACHE" ) \
   "${PASSTHROUGH[@]}"
 WRAPPER
 
