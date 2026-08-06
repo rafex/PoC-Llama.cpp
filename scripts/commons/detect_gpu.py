@@ -258,14 +258,7 @@ def detect_linux_gpu() -> Dict[str, Any]:
             gpu_info["vendor"] = "Intel"
             if _intel_gen_too_old(first_gpu):
                 gpu_info["vulkan_supported"] = False
-                ocl = _check_opencl()
-                gpu_info["opencl_supported"] = ocl["opencl_supported"]
-                gpu_info["opencl_packages"] = ocl["opencl_packages"]
-                gpu_info["opencl_missing"] = ocl["opencl_missing"]
-                if ocl["opencl_supported"]:
-                    gpu_info["backend_recommended"] = "GGML_OPENCL"
-                else:
-                    gpu_info["backend_recommended"] = "CPU"
+                gpu_info["backend_recommended"] = "CPU"
             elif vulkan_ok:
                 gpu_info["backend_recommended"] = "GGML_VULKAN"
             else:

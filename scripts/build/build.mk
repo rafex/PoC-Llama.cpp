@@ -19,15 +19,13 @@ DETECT_GPU        := scripts/commons/detect_gpu.py
 
 # Auto-detecta si el SDK Vulkan está instalado y añade GGML_VULKAN=ON
 VULKAN_OVERRIDE := $(shell python3 $(DETECT_GPU) --vulkan-override 2>/dev/null || echo "")
-# Auto-detecta si OpenCL está instalado y añade GGML_OPENCL=ON (Intel Gen7-)
-OPENCL_OVERRIDE := $(shell python3 $(DETECT_GPU) --opencl-override 2>/dev/null || echo "")
 
 ifdef PROFILE
   PROFILE_TOML        := $(TEMPLATES_DIR)/$(PROFILE)/build.toml
   ifneq ($(wildcard $(PROFILE_TOML)),)
     PROFILE_CMAKE_FLAGS := $(shell python3 $(TOML_READER) "$(PROFILE_TOML)" --format cmake 2>/dev/null)
     BUILD_JOBS          := $(shell python3 $(TOML_READER) "$(PROFILE_TOML)" --key build.jobs 2>/dev/null)
-    ACTIVE_CMAKE_FLAGS  := $(PROFILE_CMAKE_FLAGS) $(VULKAN_OVERRIDE) $(OPENCL_OVERRIDE) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
+    ACTIVE_CMAKE_FLAGS  := $(PROFILE_CMAKE_FLAGS) $(VULKAN_OVERRIDE) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
     ACTIVE_JOBS         := $(BUILD_JOBS)
   else
     # PROFILE definido pero build.toml no existe — fallback a detección automática
