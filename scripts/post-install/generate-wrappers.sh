@@ -103,6 +103,20 @@ _calc_safe_ctx() {
     echo "$safe"
 }
 
+_check_intel_old_gpu() {
+    local gpu_info=""
+    if command -v lspci >/dev/null 2>&1; then
+        gpu_info=$(lspci -d::0300 2>/dev/null || echo "")
+    fi
+    if [ -z "$gpu_info" ] && command -v lsgpu >/dev/null 2>&1; then
+        gpu_info=$(lsgpu 2>/dev/null || echo "")
+    fi
+    for kw in "3rd Gen" "2nd Gen" "Ivybridge" "Sandybridge" "Haswell" "Bay Trail" "Cherry Trail"; do
+        if echo "$gpu_info" | grep -qi "$kw"; then return 0; fi
+    done
+    return 1
+}
+
 # ── Parseo de flags (+ retrocompatibilidad posicional) ────────────────────
 MODEL=""
 PORT=""
@@ -141,6 +155,13 @@ done
 [ -z "$MODEL" ] && { _llama_warn "Especifica --model <ruta.gguf>"; exit 1; }
 PORT="${PORT:-$DEFAULT_PORT}"
 NGL="${LLAMA_NGL:-${NGL:-$DEFAULT_NGL}}"
+
+# ── Runtime GPU validation: Intel Gen7- → force NGL=0 ────────────────────
+if [ "$NGL" -gt 0 ] && _check_intel_old_gpu; then
+    _llama_warn "GPU Intel Gen7 o anterior detectada — no compatible con Vulkan"
+    _llama_warn "Forzando NGL=0 (solo CPU). Usa LLAMA_NGL=0 para silenciar."
+    NGL=0
+fi
 
 # ── Detección dinámica ────────────────────────────────────────────────────
 MODEL_CTX=$(_get_model_ctx "$MODEL")
@@ -294,6 +315,20 @@ _calc_safe_ctx() {
     echo "$safe"
 }
 
+_check_intel_old_gpu() {
+    local gpu_info=""
+    if command -v lspci >/dev/null 2>&1; then
+        gpu_info=$(lspci -d::0300 2>/dev/null || echo "")
+    fi
+    if [ -z "$gpu_info" ] && command -v lsgpu >/dev/null 2>&1; then
+        gpu_info=$(lsgpu 2>/dev/null || echo "")
+    fi
+    for kw in "3rd Gen" "2nd Gen" "Ivybridge" "Sandybridge" "Haswell" "Bay Trail" "Cherry Trail"; do
+        if echo "$gpu_info" | grep -qi "$kw"; then return 0; fi
+    done
+    return 1
+}
+
 # ── Parseo de flags (+ retrocompatibilidad posicional) ────────────────────
 MODEL=""
 PORT=""
@@ -333,6 +368,13 @@ done
 PORT="${PORT:-$DEFAULT_PORT}"
 NGL="${LLAMA_NGL:-${NGL:-$DEFAULT_NGL}}"
 POOLING="${POOLING:-$DEFAULT_POOLING}"
+
+# ── Runtime GPU validation: Intel Gen7- → force NGL=0 ────────────────────
+if [ "$NGL" -gt 0 ] && _check_intel_old_gpu; then
+    _llama_warn "GPU Intel Gen7 o anterior detectada — no compatible con Vulkan"
+    _llama_warn "Forzando NGL=0 (solo CPU). Usa LLAMA_NGL=0 para silenciar."
+    NGL=0
+fi
 
 # ── Detección dinámica ────────────────────────────────────────────────────
 MODEL_CTX=$(_get_model_ctx "$MODEL")
