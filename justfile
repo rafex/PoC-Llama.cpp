@@ -103,7 +103,7 @@ stop-server:
     fi
 
 # Inicia llama-server con el modelo especificado y número opcional de capas GPU (ngl="99")
-run model port="8080" ngl="99":
+run model port="43110" ngl="99":
     just stop-server
     @echo "[INFO] Iniciando llama-server con {{model}} en puerto {{port}} (capas GPU ngl={{ngl}}) ..."
     llama-server \
@@ -117,11 +117,32 @@ run model port="8080" ngl="99":
       -t "$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
 
 # Inicia llama-server con un modelo del catálogo por ID
-run-id id port="8080" ngl="99":
+run-id id port="43110" ngl="99":
     #!/usr/bin/env bash
     set -euo pipefail
     model="$(python3 scripts/models/model-download.py --path "{{id}}")"
     just run "$model" "{{port}}" "{{ngl}}"
+
+# Inicia llama-server en modo embeddings con el modelo especificado
+run-embed model port="43111" ngl="99" pooling="mean":
+    just stop-server
+    @echo "[INFO] Iniciando llama-server (embeddings) con {{model}} en puerto {{port}} ..."
+    llama-server \
+      -m "{{model}}" \
+      --host 0.0.0.0 \
+      --port {{port}} \
+      -ngl {{ngl}} \
+      --embeddings \
+      --pooling {{pooling}} \
+      --ctx-size 4096 \
+      -t "$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
+
+# Inicia llama-server en modo embeddings con un modelo del catálogo por ID
+run-embed-id id port="43111" ngl="99" pooling="mean":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    model="$(python3 scripts/models/model-download.py --path "{{id}}")"
+    just run-embed "$model" "{{port}}" "{{ngl}}" "{{pooling}}"
 
 # Inicia llama-cli en modo interactivo con el modelo especificado y capas GPU
 chat model ngl="99":

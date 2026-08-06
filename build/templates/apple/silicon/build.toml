@@ -1,0 +1,41 @@
+# =============================================================================
+# Perfil de equipo: Apple Silicon (genérico M1-M5)
+#
+# Aplicable a cualquier Mac con chip Apple Silicon.
+# Usa Metal para aceleración GPU y Accelerate (BLAS) para álgebra lineal.
+#
+# Detección automática vía detect-profile.py:
+#   cpu_arch  = "arm64"
+#   cpu_model = "Apple M"  (substring match: "Apple M5", "Apple M4 Pro", etc.)
+#   has_metal = true
+# =============================================================================
+inherits = "cpu/apple/m-series"
+
+[hardware]
+manufacturer   = "Apple Inc."
+cpu_arch       = "arm64"
+cpu_model      = "Apple M"
+logical_cpus   = 8
+physical_cores = 8
+os             = "darwin"
+
+# =============================================================================
+# Generador de build
+# =============================================================================
+
+[cmake]
+generator = "Ninja"
+
+# =============================================================================
+# Flags cmake
+# =============================================================================
+
+[cmake.flags]
+BUILD_SHARED_LIBS           = "OFF"
+GGML_METAL                  = "ON"
+GGML_METAL_EMBED_LIBRARY    = "ON"
+GGML_BLAS                   = "ON"
+GGML_BLAS_VENDOR            = "Apple"
+GGML_NATIVE                 = "ON"
+LLAMA_BUILD_TESTS           = "OFF"
+LLAMA_BUILD_EXAMPLES        = "ON"

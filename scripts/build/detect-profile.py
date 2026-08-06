@@ -217,6 +217,8 @@ def detect_macos_arm() -> dict:
         "logical_cpus": total,
         "perf_cores": cores_p,
         "efficiency_cores": cores_e,
+        "product": _run(["sysctl", "-n", "hw.model"]) or "",
+        "cpu_arch": "arm64",
         "has_neon": neon == "1",
         "has_sve": sve == "1",
         "has_fp16_compute": fp16 == "1",

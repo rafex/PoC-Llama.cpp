@@ -1,0 +1,48 @@
+# =============================================================================
+# Perfil de CPU: Apple Silicon M-series (M1 / M2 / M3 / M4 / M5)
+#
+# Aplicable a todos los chips Apple M-series con arquitectura ARM64.
+#
+# Extensiones soportadas:
+#   NEON  — SÍ (SIMD ARM estándar)
+#   SVE   — SÍ (Scalable Vector Extension, M4+)
+#   FP16  — SÍ (half-precision en GPU)
+#
+# Equipos conocidos:
+#   MacBook Pro M1/M2/M3/M4/M5
+#   Mac mini M1/M2/M4
+#   Mac Studio M1/M2/M3/M4 Ultra
+#   iMac M1/M3/M4
+# =============================================================================
+
+[cpu]
+name   = "Apple Silicon M-series"
+vendor = "apple"
+arch   = "arm64"
+gen    = "M1-M5"
+
+# Extensiones ARM
+neon = true
+sve  = true
+fp16 = true
+
+# =============================================================================
+# Configuración del compilador
+# =============================================================================
+
+[compiler]
+march = "apple-m1"
+mtune = "apple-m1"
+
+# Optimización base para Apple Silicon.
+# -mcpu=apple-m1 es seguro y portable entre todas las generaciones M1-M5.
+cflags = "-O3 -mcpu=apple-m1 -ffast-math"
+
+# =============================================================================
+# Flags cmake de extensiones CPU
+# GGML_NATIVE=ON permite que cmake detecte automáticamente la microarquitectura
+# del chip (M1 → M5) y optimice para el modelo exacto.
+# =============================================================================
+
+[cmake.flags]
+GGML_NATIVE = "ON"
