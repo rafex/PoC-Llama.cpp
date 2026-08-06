@@ -67,15 +67,17 @@ def detect_linux_gpu() -> Dict[str, Any]:
             if any(term in line.lower() for term in ["vga compatible controller", "3d controller", "display controller"]):
                 gpus.append(line.split(":", 2)[-1].strip())
 
-    # 1b. Detección vía lsgpu (si lspci no está instalado o para más detalle)
-    if not gpus and shutil.which("lsgpu"):
+    # 1b. Detección vía lsgpu (complementa lspci con info de chipset)
+    if shutil.which("lsgpu"):
         lsgpu_out = run_command(["lsgpu"])
         if lsgpu_out:
             for line in lsgpu_out.splitlines():
                 if "drm:" in line or "card" in line:
                     parts = line.split()
                     if len(parts) >= 2:
-                        gpus.append(" ".join(parts[1:-1]).strip() or parts[0])
+                        ls_name = " ".join(parts[1:-1]).strip() if parts[-1].startswith("drm:") else " ".join(parts[1:]).strip() if len(parts) >= 3 else parts[0]
+                        if ls_name and ls_name not in gpus:
+                            gpus.append(ls_name)
 
     # 1c. Comprobar aceleración DRM (/dev/dri/renderD128)
     drm_available = os.path.exists("/dev/dri/renderD128") or os.path.exists("/dev/dri/card0")
@@ -97,13 +99,19 @@ def detect_linux_gpu() -> Dict[str, Any]:
             has_nvidia = True
 
     # 3. Check Vulkan (Universal para Intel HD / Iris / Arc / AMD / NVIDIA)
+    #    Requiere SDK completo: libvulkan + headers + glslc (cmake compila shaders)
+    has_glslc = shutil.which("glslc") is not None
+    has_headers = os.path.exists("/usr/include/vulkan/vulkan.h")
+    vulkan_sdk_ok = has_glslc and has_headers
+
     vulkan_ok = False
-    if shutil.which("vulkaninfo"):
-        vinfo = run_command(["vulkaninfo", "--summary"])
-        if "GPU" in vinfo or "Vulkan Instance Version" in vinfo:
+    if vulkan_sdk_ok:
+        if shutil.which("vulkaninfo"):
+            vinfo = run_command(["vulkaninfo", "--summary"])
+            if "GPU" in vinfo or "Vulkan Instance Version" in vinfo:
+                vulkan_ok = True
+        elif os.path.exists("/usr/lib/x86_64-linux-gnu/libvulkan.so.1") or os.path.exists("/usr/lib64/libvulkan.so.1") or drm_available:
             vulkan_ok = True
-    elif os.path.exists("/usr/lib/x86_64-linux-gnu/libvulkan.so.1") or os.path.exists("/usr/lib64/libvulkan.so.1") or drm_available:
-        vulkan_ok = True
 
     if vulkan_ok:
         gpu_info["vulkan_supported"] = True
@@ -179,7 +187,7 @@ def main():
     print(f"{bold}PoC-Llama.cpp — Diagnóstico de GPU{reset}\n")
     print(f"  {bold}Fabricante / Modelo:{reset}  {info['vendor']} — {info['model']}")
     print(f"  {bold}VRAM Estimada:{reset}        {info['vram_gb']} GB")
-    print(f"  {bold}Soporte Vulkan:{reset}       {green + 'SÍ' + reset if info['vulkan_supported'] else yellow + 'NO (requiere mesa-vulkan-drivers / vulkan-tools)' + reset}")
+    print(f"  {bold}Soporte Vulkan:{reset}       {green + 'SÍ' + reset if info['vulkan_supported'] else yellow + 'NO (requiere vulkan-sdk: libvulkan-dev + glslang-tools)' + reset}")
     print(f"  {bold}Soporte CUDA:{reset}         {green + 'SÍ' + reset if info['cuda_supported'] else 'NO'}")
     print(f"  {bold}Soporte ROCm:{reset}         {green + 'SÍ' + reset if info['rocm_supported'] else 'NO'}")
     print(f"  {bold}Soporte Metal:{reset}        {green + 'SÍ' + reset if info['metal_supported'] else 'NO'}")

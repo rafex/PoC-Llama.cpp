@@ -50,11 +50,40 @@ def _read_file(path: str) -> str:
 # Detección por plataforma
 # ---------------------------------------------------------------------------
 
+# Mapeo (family, model) → microarquitectura para CPUs Intel x86
+_MICROARCH_MAP: dict[tuple[str, str], str] = {
+    ("6", "42"):  "sandybridge",
+    ("6", "58"):  "ivybridge",
+    ("6", "60"):  "haswell",
+    ("6", "69"):  "haswell",
+    ("6", "70"):  "haswell",
+    ("6", "61"):  "broadwell",
+    ("6", "78"):  "skylake",
+    ("6", "94"):  "skylake",
+    ("6", "142"): "kabylake",
+    ("6", "158"): "kabylake",
+    ("6", "85"):  "coffeelake",
+    ("6", "165"): "cometlake",
+    ("6", "166"): "cometlake",
+    ("6", "167"): "icelake",
+    ("6", "125"): "tigerlake",
+    ("6", "141"): "alderlake",
+    ("6", "151"): "raptorlake",
+}
+
+
+def _infer_microarch(cpu_family: str, cpu_model: str) -> str:
+    """Infiera la microarquitectura a partir de family+model de /proc/cpuinfo."""
+    return _MICROARCH_MAP.get((cpu_family, cpu_model), "")
+
+
 def detect_linux_x86() -> dict:
     """Detecta CPU en Linux x86_64."""
     cpuinfo = _read_file("/proc/cpuinfo")
     model_name = ""
     flags_list: list[str] = []
+    cpu_family = ""
+    cpu_model_num = ""
 
     for line in cpuinfo.splitlines():
         line = line.strip()
@@ -65,6 +94,10 @@ def detect_linux_x86() -> dict:
         val = val.strip()
         if key == "model name" and not model_name:
             model_name = val
+        if key == "cpu family" and not cpu_family:
+            cpu_family = val
+        if key == "model" and not cpu_model_num:
+            cpu_model_num = val
         if key == "flags":
             flags_list.extend(val.split())
 
@@ -74,9 +107,16 @@ def detect_linux_x86() -> dict:
 
     flags_set = set(flags_list)
 
+    # DMI: producto y fabricante (sin sudo, desde sysfs)
+    product = _read_file("/sys/devices/virtual/dmi/id/product_name")
+    manufacturer = _read_file("/sys/devices/virtual/dmi/id/sys_vendor")
+
     return {
         "cpu_model": model_name,
         "logical_cpus": cores,
+        "product": product,
+        "manufacturer": manufacturer,
+        "cpu_arch": _infer_microarch(cpu_family, cpu_model_num),
         "has_avx": "avx" in flags_set,
         "has_avx2": "avx2" in flags_set,
         "has_avx512": "avx512f" in flags_set,
@@ -225,11 +265,11 @@ def cmake_flags_from_detection(det: dict) -> str:
         from detect_gpu import get_gpu_info
         gpu_info = get_gpu_info()
         rec_backend = gpu_info.get("backend_recommended", "CPU")
-        if rec_backend == "GGML_VULKAN":
+        if rec_backend == "GGML_VULKAN" and gpu_info.get("vulkan_supported"):
             flags.append("-DGGML_VULKAN=ON")
-        elif rec_backend == "GGML_CUDA":
+        elif rec_backend == "GGML_CUDA" and gpu_info.get("cuda_supported"):
             flags.append("-DGGML_CUDA=ON")
-        elif rec_backend == "GGML_HIP":
+        elif rec_backend == "GGML_HIP" and gpu_info.get("rocm_supported"):
             flags.append("-DGGML_HIP=ON")
     except Exception:
         pass
@@ -303,13 +343,28 @@ def _load_toml_profile(toml_path: Path) -> dict:
     return data.get("hardware", {})
 
 
+def _normalize_cpu_model(name: str) -> str:
+    """Normaliza un nombre de CPU para comparación.
+
+    Elimina decoradores como (R), (TM), CPU @ X.XXGHz y colapsa espacios.
+    'Intel(R) Core(TM) i7-3615QM CPU @ 2.30GHz' → 'Intel Core i7-3615QM'
+    """
+    import re
+    name = re.sub(r"\(R\)", "", name)
+    name = re.sub(r"\(TM\)", "", name)
+    name = re.sub(r"CPU @ [\d.]+GHz", "", name)
+    name = re.sub(r"\s+", " ", name)
+    return name.strip()
+
+
 def match_profile(det: dict) -> str:
     """Busca un perfil TOML que coincida con el hardware detectado.
 
     Devuelve el nombre de perfil (ej: 'raspi/4b') o cadena vacía si no hay match.
     Estrategia:
-      1. Match exacto de product (ej: "Raspberry Pi 4 Model B")
-      2. Match parcial de cpu_model + arch
+      1. Match exacto de product (ej: "Macmini6,2")
+      2. Match por cpu_arch + cpu_model normalizado
+      3. Fallback: match solo por cpu_model normalizado (substring)
     """
     if not TEMPLATES_DIR.is_dir():
         return ""
@@ -325,7 +380,7 @@ def match_profile(det: dict) -> str:
             candidates.append((profile_name, hw))
 
     detected_product = det.get("product", "")
-    detected_model = det.get("cpu_model", "")
+    detected_model = _normalize_cpu_model(det.get("cpu_model", ""))
     detected_arch = det.get("arch", "")
 
     # Fase 1: match exacto por product
@@ -334,14 +389,22 @@ def match_profile(det: dict) -> str:
             if hw["product"].lower() in detected_product.lower() or detected_product.lower() in hw["product"].lower():
                 return name
 
-    # Fase 2: match por cpu_model + arch
+    # Fase 2: match por cpu_arch + cpu_model (microarquitectura detectada)
+    detected_cpu_arch = det.get("cpu_arch", "")
     for name, hw in candidates:
         hw_arch = hw.get("cpu_arch", "")
-        hw_model = hw.get("cpu_model", "")
-        if hw_arch and detected_arch and hw_arch == detected_arch:
+        hw_model = _normalize_cpu_model(hw.get("cpu_model", ""))
+        if hw_arch and detected_cpu_arch and hw_arch == detected_cpu_arch:
             if hw_model and detected_model:
                 if hw_model.lower() in detected_model.lower() or detected_model.lower() in hw_model.lower():
                     return name
+
+    # Fase 3: fallback — match solo por cpu_model normalizado (substring)
+    for name, hw in candidates:
+        hw_model = _normalize_cpu_model(hw.get("cpu_model", ""))
+        if hw_model and detected_model:
+            if hw_model.lower() in detected_model.lower() or detected_model.lower() in hw_model.lower():
+                return name
 
     return ""
 
