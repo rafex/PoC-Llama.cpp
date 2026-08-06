@@ -38,6 +38,7 @@ help:
 	@printf "  %-28s %s\n" "update"           "Actualiza el repo clonado a la última release"
 	@printf "  %-28s %s\n" "configure"        "Configura cmake con flags de plataforma"
 	@printf "  %-28s %s\n" "compile"          "Compila llama.cpp"
+	@printf "  %-28s %s\n" "compile-auto"     "Compila con auto-detección + validación de perfil"
 	@printf "  %-28s %s\n" "build-clean"      "Limpia artefactos cmake (mantiene repo)"
 	@printf "  %-28s %s\n" "build-purge"      "Elimina también el repo clonado"
 	@printf "\n$(CYAN)Instalación$(RESET)\n"

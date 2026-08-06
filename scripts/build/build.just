@@ -18,6 +18,18 @@ configure:
 compile:
     make compile
 
+# Compilación resiliente con auto-detección y validación de perfil
+# Uso: just compile-auto           → auto-detecta hardware
+#      just compile-auto raspi/4b  → valida perfil; si no existe, pregunta
+compile-auto profile="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -z "{{profile}}" ]]; then
+        make compile-auto
+    else
+        make compile-auto PROFILE="{{profile}}"
+    fi
+
 # Compila llama.cpp con un perfil específico (ej: apple/macmini6.2)
 compile-profile profile:
     make compile PROFILE={{profile}}

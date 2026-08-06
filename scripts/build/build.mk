@@ -14,20 +14,27 @@
 TOML_READER       := scripts/commons/toml-reader.py
 TEMPLATES_DIR     := build/templates
 FETCH_LATEST_TAG  := scripts/build/fetch-latest-tag.py
+DETECT_PROFILE    := scripts/build/detect-profile.py
 
 ifdef PROFILE
   PROFILE_TOML        := $(TEMPLATES_DIR)/$(PROFILE)/build.toml
-  PROFILE_CMAKE_FLAGS := $(shell python3 $(TOML_READER) "$(PROFILE_TOML)" --format cmake)
-  BUILD_JOBS          := $(shell python3 $(TOML_READER) "$(PROFILE_TOML)" --key build.jobs)
-  ACTIVE_CMAKE_FLAGS  := $(PROFILE_CMAKE_FLAGS) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
-  ACTIVE_JOBS         := $(BUILD_JOBS)
+  ifneq ($(wildcard $(PROFILE_TOML)),)
+    PROFILE_CMAKE_FLAGS := $(shell python3 $(TOML_READER) "$(PROFILE_TOML)" --format cmake 2>/dev/null)
+    BUILD_JOBS          := $(shell python3 $(TOML_READER) "$(PROFILE_TOML)" --key build.jobs 2>/dev/null)
+    ACTIVE_CMAKE_FLAGS  := $(PROFILE_CMAKE_FLAGS) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
+    ACTIVE_JOBS         := $(BUILD_JOBS)
+  else
+    # PROFILE definido pero build.toml no existe — fallback a detección automática
+    ACTIVE_CMAKE_FLAGS  := $(CMAKE_COMMON_FLAGS) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
+    ACTIVE_JOBS         := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+  endif
 else
   # Flags generados automáticamente por commons.mk según la plataforma
   ACTIVE_CMAKE_FLAGS  := $(CMAKE_COMMON_FLAGS) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)
   ACTIVE_JOBS         := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 endif
 
-.PHONY: clone update configure compile build-clean build-purge profile-info
+.PHONY: clone update configure compile compile-auto build-clean build-purge profile-info
 
 ## Clona llama.cpp en la última release (o LLAMA_TAG=bXXXX para versión específica)
 clone:
@@ -76,6 +83,45 @@ compile: configure
 	$(call log_info,Compilando con $(ACTIVE_JOBS) jobs...)
 	@cmake --build $(LLAMA_BUILD_DIR) --config Release --parallel $(ACTIVE_JOBS)
 	$(call log_ok,Compilación completada.)
+
+## Compilación resiliente con auto-detección de hardware y validación de perfil
+##   make compile-auto                     → auto-detecta hardware y compila
+##   make compile-auto PROFILE=raspi/4b    → valida perfil; si no existe, pregunta y hace fallback
+compile-auto:
+	@if [ -n "$(PROFILE)" ]; then \
+	  if [ -f "$(TEMPLATES_DIR)/$(PROFILE)/build.toml" ]; then \
+	    printf "$(CYAN)[INFO]$(RESET)  Perfil válido: $(PROFILE)\n"; \
+	    $(MAKE) compile PROFILE=$(PROFILE); \
+	  else \
+	    printf "$(RED)[ERROR]$(RESET) Perfil no encontrado: $(PROFILE)\n"; \
+	    echo ""; \
+	    printf "$(CYAN)[INFO]$(RESET)  Perfiles disponibles:\n"; \
+	    find $(TEMPLATES_DIR) -name "build.toml" \
+	      | sed "s|$(TEMPLATES_DIR)/||;s|/build.toml||" \
+	      | sort | sed 's|^|  |'; \
+	    echo ""; \
+	    read -r -p "$$(printf '$(YELLOW)[WARN]$(RESET)  ¿Continuar con detección automática genérica? [y/N] ')" ans; \
+	    case "$$ans" in \
+	      y|Y|yes|YES) \
+	        printf "$(CYAN)[INFO]$(RESET)  Continuando con detección automática genérica...\n"; \
+	        $(MAKE) compile ;; \
+	      *) \
+	        printf "$(YELLOW)[WARN]$(RESET)  Abortado por el usuario.\n"; \
+	        exit 1 ;; \
+	    esac; \
+	  fi; \
+	else \
+	  printf "$(CYAN)[INFO]$(RESET)  Auto-detectando hardware...\n"; \
+	  detected=$$(python3 $(DETECT_PROFILE) --match 2>/dev/null || echo ""); \
+	  if [ -n "$$detected" ]; then \
+	    printf "$(GREEN)[OK]$(RESET)    Hardware detectado: $$detected\n"; \
+	    $(MAKE) compile PROFILE=$$detected; \
+	  else \
+	    printf "$(CYAN)[INFO]$(RESET)  Sin perfil TOML específico — usando flags genéricos detectados\n"; \
+	    python3 $(DETECT_PROFILE) --info 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'  CPU: {d.get(\"cpu_model\",\"?\")}  |  Cores: {d.get(\"logical_cpus\",\"?\")}  |  Arch: {d.get(\"arch\",\"?\")}  |  OS: {d.get(\"os\",\"?\")}')" 2>/dev/null || true; \
+	    $(MAKE) compile; \
+	  fi; \
+	fi
 
 ## Muestra los flags cmake que se usarían (sin compilar)
 profile-info:
