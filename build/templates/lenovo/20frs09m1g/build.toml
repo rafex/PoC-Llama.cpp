@@ -1,0 +1,60 @@
+# =============================================================================
+# Perfil de compilación: Lenovo ThinkPad X1 Yoga 1st
+# Generado a partir del hardware detectado en thinkpad.
+#
+# Hardware:
+#   DMI product: 20FRS09M1G
+#   CPU: Intel Core i7-6600U, Skylake
+#   2 núcleos físicos / 4 hilos lógicos
+#   15.5 GiB RAM LPDDR3
+#   GPU: Intel HD Graphics 520 con Mesa Vulkan
+#
+# La configuración del procesador se hereda de:
+#   build/templates/cpu/intel/skylake.toml
+# =============================================================================
+
+inherits = "cpu/intel/skylake"
+
+[hardware]
+manufacturer   = "LENOVO"
+product        = "20FRS09M1G"
+cpu_model      = "Intel(R) Core(TM) i7-6600U CPU @ 2.60GHz"
+cpu_arch       = "skylake"
+logical_cpus   = 4
+physical_cores = 2
+ram_gb         = 15.5
+os             = "linux"
+gpu            = "Intel HD Graphics 520"
+
+[build]
+jobs      = 4
+type      = "Release"
+generator = "Unix Makefiles"
+
+[dependencies]
+commands = ["git", "cmake", "gcc", "g++", "pkg-config"]
+pkg_config = ["openblas", "openssl"]
+apt_packages = [
+  "build-essential",
+  "cmake",
+  "git",
+  "libopenblas-dev",
+  "libssl-dev",
+  "pkg-config",
+  "libvulkan-dev",
+  "glslang-tools",
+  "glslc",
+  "spirv-headers",
+  "mesa-vulkan-drivers",
+  "vulkan-tools",
+]
+
+[cmake.flags]
+BUILD_SHARED_LIBS    = "OFF"
+GGML_BLAS            = "ON"
+GGML_BLAS_VENDOR     = "OpenBLAS"
+GGML_OPENMP          = "ON"
+GGML_VULKAN          = "ON"
+GGML_METAL           = "OFF"
+LLAMA_BUILD_TESTS    = "OFF"
+LLAMA_BUILD_EXAMPLES = "ON"

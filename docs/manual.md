@@ -174,6 +174,7 @@ Estos perfiles se pueden usar con `make compile PROFILE=<nombre>` o `just setup-
 |--------|--------|-----|-------|------|
 | `apple/macmini6.2` | Apple Mac mini 6,2 | Intel Core i7-3615QM (hereda de ivybridge) | 4C/8T | SSE4.2, AVX |
 | `raspi/4b` | Raspberry Pi 4 Model B | ARM Cortex-A72 | 4C/4T | NEON, CRC32 |
+| `lenovo/20frs09m1g` | ThinkPad X1 Yoga 1st | Intel Core i7-6600U (hereda de skylake) | 2C/4T | AVX2, FMA, F16C, BMI2, Vulkan |
 
 ### Perfiles de CPU (herencia solamente)
 
@@ -183,6 +184,7 @@ Estos perfiles son bibliotecas para que los perfiles de hardware hereden de ello
 |---------|-------------------|------------|-----------------|---------------|--------------|
 | `cpu/intel/ivybridge.toml` | Intel Ivy Bridge | 3ª gen | SSE4.2, AVX | cualquiera | `apple/macmini6.2` |
 | `cpu/intel/cometlake.toml` | Intel Comet Lake | 10ª gen | AVX2, FMA, BMI2, F16C | **gcc-12+** | _(ninguno aún)_ |
+| `cpu/intel/skylake.toml` | Intel Skylake | 6ª gen | AVX2, FMA, BMI2, F16C | cualquiera | `lenovo/20frs09m1g` |
 
 ### Extensiones por perfil de CPU
 

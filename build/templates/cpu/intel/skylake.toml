@@ -1,0 +1,50 @@
+# =============================================================================
+# Perfil de CPU: Intel Skylake (6ª generación)
+#
+# Aplicable a:
+#   Core i7/i5/i3-6xxx, incluyendo el i7-6600U
+#   También sirve como base para Kaby Lake y Coffee Lake compatibles
+#
+# Extensiones verificadas en el ThinkPad X1 Yoga:
+#   SSE4.1, SSE4.2, AVX, AVX2, F16C, FMA3, BMI1, BMI2 — SÍ
+#   AVX-512                                             — NO
+# =============================================================================
+
+[cpu]
+name    = "Intel Skylake"
+vendor  = "intel"
+arch    = "skylake"
+gen     = "6th"
+
+# Extensiones SIMD soportadas
+sse41  = true
+sse42  = true
+avx    = true
+avx2   = true
+f16c   = true
+fma3   = true
+bmi1   = true
+bmi2   = true
+avx512 = false
+
+# =============================================================================
+# Configuración del compilador
+# =============================================================================
+
+[compiler]
+march = "skylake"
+mtune = "skylake"
+cflags = "-O3 -ffast-math -fno-finite-math-only"
+
+# =============================================================================
+# Flags cmake de extensiones CPU para ggml
+# =============================================================================
+
+[cmake.flags]
+GGML_AVX    = "ON"
+GGML_AVX2   = "ON"
+GGML_BMI2   = "ON"
+GGML_F16C   = "ON"
+GGML_FMA    = "ON"
+GGML_NATIVE = "OFF"
+GGML_AVX512 = "OFF"
