@@ -378,6 +378,35 @@ just chat /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
 just bench /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
 ```
 
+### Benchmark y ejecución adaptativa
+
+Para seleccionar el backend más rápido del equipo por modelo, ejecuta el
+benchmark explícito. Se prueban OpenBLAS (`BLAS`) y los dispositivos Vulkan
+disponibles con los mismos parámetros de prompt y generación:
+
+```bash
+# Acepta una ruta .gguf o un ID ya descargado del catálogo
+just benchmark-best /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
+
+# Objetivo de generación (default: tg)
+just run-best /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
+
+# Elegir la configuración ganadora para procesamiento de prompt
+just run-best /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf 43110 pp
+```
+
+Los resultados se guardan fuera del repositorio en
+`${LLAMA_STATE_DIR:-~/.local/state/llama.cpp}/benchmarks/`, identificados por
+el SHA256 del modelo. Si el modelo, el hardware o el dispositivo cambian,
+`run-best` descarta el perfil y usa BLAS como fallback. Los comandos `just run`,
+`just chat` y los wrappers legacy mantienen su comportamiento actual.
+
+Las pruebas unitarias del parser y selector se ejecutan con:
+
+```bash
+make test-runtime
+```
+
 ### Detener el servidor
 
 ```bash

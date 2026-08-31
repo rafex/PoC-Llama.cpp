@@ -27,6 +27,7 @@ Cada subdirectorio de `scripts/` corresponde a un dominio semántico:
 - `build/` — clonar repo, configurar cmake, compilar
 - `install/` — instalar binarios versionados, crear symlinks
 - `post-install/` — generar wrappers, ajustar permisos
+- `runtime/` — benchmark y selección adaptativa de backend por modelo
 - `debug/` — diagnóstico de entorno, CPU, binarios, modelos
 - `uninstall/` — desinstalación limpia por versión o total
 

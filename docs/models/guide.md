@@ -98,6 +98,12 @@ just run /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf 8080
 # Benchmark
 just bench /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
 
+# Medir BLAS/Vulkan y guardar la mejor configuración para este modelo
+just benchmark-best /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
+
+# Ejecutar con la configuración ganadora para generación
+just run-best /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
+
 # Ver todos los modelos descargados en /srv/models
 just models
 ```

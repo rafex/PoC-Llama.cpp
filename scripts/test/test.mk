@@ -9,7 +9,7 @@
 #   test-smoke        — inferencia rápida si hay algún modelo en /srv/models
 # =============================================================================
 
-.PHONY: test test-binaries test-versions test-smoke test-api
+.PHONY: test test-binaries test-versions test-smoke test-api test-runtime
 
 
 # Binarios a verificar en el test suite
@@ -20,7 +20,7 @@ TEST_BINARIES_TOOLS := llama-quantize llama-gguf llama-gguf-split llama-gguf-has
                        llama-tokenize llama-imatrix
 
 ## Suite completa de pruebas
-test: test-binaries test-versions
+test: test-binaries test-versions test-runtime
 	@printf "$(GREEN)[OK]$(RESET)    Todas las pruebas pasaron.\n"
 
 ## Verifica que los binarios están instalados y son ejecutables
@@ -123,4 +123,3 @@ test-api:
 	  printf "$(RED)[FAIL]$(RESET)  Respuesta de API inválida: $$res\n"; \
 	  exit 1; \
 	fi
-

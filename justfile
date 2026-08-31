@@ -22,6 +22,7 @@ import "scripts/test/test.just"
 import "scripts/models/models.just"
 import "scripts/debug/debug.just"
 import "scripts/uninstall/uninstall.just"
+import "scripts/runtime/runtime.just"
 
 # Muestra ayuda por defecto
 default:

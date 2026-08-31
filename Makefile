@@ -26,6 +26,7 @@ include scripts/test/test.mk
 include scripts/models/models.mk
 include scripts/debug/debug.mk
 include scripts/uninstall/uninstall.mk
+include scripts/runtime/runtime.mk
 
 # --- Help ---------------------------------------------------------------------
 .PHONY: help
@@ -65,6 +66,10 @@ help:
 
 	@printf "  %-28s %s\n" "debug-models"     "Modelos disponibles en /srv/models"
 	@printf "  %-28s %s\n" "check-update"     "Compara versión local vs última release de llama.cpp"
+	@printf "\n$(CYAN)Runtime adaptativo$(RESET)\n"
+	@printf "  %-28s %s\n" "benchmark-best"   "Mide BLAS/Vulkan y guarda el mejor perfil por modelo"
+	@printf "  %-28s %s\n" "run-best"         "Inicia el servidor con el backend ganador"
+	@printf "  %-28s %s\n" "test-runtime"     "Pruebas unitarias del selector adaptativo"
 	@printf "\n$(CYAN)Desinstalación$(RESET)\n"
 	@printf "  %-28s %s\n" "uninstall"        "Desinstala versión activa + symlinks"
 	@printf "  %-28s %s\n" "uninstall-version VERSION=<v>" "Desinstala versión específica"

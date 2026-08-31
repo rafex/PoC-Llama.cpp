@@ -30,6 +30,12 @@ just model-download-id qwen2.5-1.5b-chat-q4
 # Iniciar servidor con un modelo (API compatible con OpenAI)
 just run /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf 8080
 
+# Medir backends y guardar la configuración más rápida por modelo
+just benchmark-best /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
+
+# Iniciar usando el perfil medido (tg por defecto)
+just run-best /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
+
 # Chat interactivo en terminal
 just chat /srv/models/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf
 
@@ -49,6 +55,7 @@ make help
 │   ├── build/                      # Clonación y compilación de llama.cpp
 │   ├── install/                    # Instalación versionada en /opt/llama.cpp
 │   ├── post-install/               # Wrappers semánticos y permisos
+│   ├── runtime/                    # Benchmark y selección adaptativa
 │   ├── debug/                      # Diagnóstico de entorno y binarios
 │   └── uninstall/                  # Desinstalación limpia
 ├── build/

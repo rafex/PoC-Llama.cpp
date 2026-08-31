@@ -9,6 +9,12 @@ WRAPPERS_DIR="$INSTALL_DIR/scripts"
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
 mkdir -p "$WRAPPERS_DIR"
+RUNTIME_SCRIPT="$REPO_DIR/scripts/runtime/runtime.py"
+if [ -f "$RUNTIME_SCRIPT" ]; then
+    install -m 755 "$RUNTIME_SCRIPT" "$WRAPPERS_DIR/runtime.py"
+else
+    echo "[WARN] No se encontró runtime.py; no se generarán wrappers adaptativos" >&2
+fi
 
 # ── Detectar soporte GPU para incluir -ngl en los wrappers ──────────────────
 GPU_NGL_DEFAULT=0
@@ -19,6 +25,12 @@ if [ -f "$REPO_DIR/scripts/commons/detect_gpu.py" ] && \
 else
     echo "[INFO] Sin GPU backend — los wrappers no incluirán -ngl"
 fi
+
+replace_ngl_placeholder() {
+    local file="$1"
+    sed -i.bak "s|__DEFAULT_NGL__|${GPU_NGL_DEFAULT}|g" "$file"
+    rm -f "${file}.bak"
+}
 
 # --- start-server.sh ----------------------------------------------------------
 cat > "$WRAPPERS_DIR/start-server.sh" << 'WRAPPER'
@@ -34,8 +46,10 @@ cat > "$WRAPPERS_DIR/start-server.sh" << 'WRAPPER'
 #   --ctx-size <n>          Tamaño de contexto (default: auto-detectado)
 #   -n, --n-predict <n>     Tokens a generar (default: 512)
 #   --ngl <n>               Capas GPU (default: detectado en compilación)
+#   --device <name>         Dispositivo explícito: BLAS o Vulkan0
 #   -t, --threads <n>       Hilos (default: todos los núcleos)
-#   -b, --batch-size <n>     Tamaño de lote 256|512|... (default: auto)
+#   -b, --batch-size <n>    Tamaño lógico de lote (default: auto)
+#   --ubatch-size <n>       Tamaño físico de lote (default: igual a batch)
 #   --cache-ram <N>          RAM para KV cache en MiB (default: 4096, 0=off)
 #   --no-cache-prompt        Desactiva el cache de prompt
 #   --slot-save-path <dir>   Directorio para cache persistente en disco
@@ -43,7 +57,7 @@ cat > "$WRAPPERS_DIR/start-server.sh" << 'WRAPPER'
 #   --                       Todo lo posterior pasa a llama-server
 #
 # Variables de entorno para override:
-#   LLAMA_CTX_SIZE, LLAMA_N_PREDICT, LLAMA_NGL, LLAMA_THREADS, LLAMA_VERBOSE
+#   LLAMA_CTX_SIZE, LLAMA_N_PREDICT, LLAMA_NGL, LLAMA_DEVICE, LLAMA_THREADS, LLAMA_VERBOSE
 set -euo pipefail
 
 DEFAULT_PORT=43110
@@ -137,6 +151,8 @@ CTX_SIZE_ARG=""
 N_PREDICT_ARG=""
 THREADS_ARG=""
 BATCH_ARG=""
+UBATCH_ARG=""
+DEVICE_ARG=""
 CACHE_RAM_ARG=""
 SLOT_SAVE_ARG=""
 VERBOSE=0
@@ -149,8 +165,10 @@ while [[ $# -gt 0 ]]; do
         --ctx-size)    CTX_SIZE_ARG="$2"; shift 2 ;;
         -n|--n-predict) N_PREDICT_ARG="$2"; shift 2 ;;
         --ngl)         NGL="$2"; shift 2 ;;
+        --device)      DEVICE_ARG="$2"; shift 2 ;;
         -t|--threads)  THREADS_ARG="$2"; shift 2 ;;
         -b|--batch-size) BATCH_ARG="$2"; shift 2 ;;
+        --ubatch-size) UBATCH_ARG="$2"; shift 2 ;;
         --cache-ram)   CACHE_RAM_ARG="$2"; shift 2 ;;
         --no-cache-prompt) CACHE_RAM_ARG="0"; shift ;;
         --slot-save-path) SLOT_SAVE_ARG="$2"; shift 2 ;;
@@ -174,6 +192,7 @@ done
 [ -z "$MODEL" ] && { _llama_warn "Especifica --model <ruta.gguf>"; exit 1; }
 PORT="${PORT:-$DEFAULT_PORT}"
 NGL="${LLAMA_NGL:-${NGL:-$DEFAULT_NGL}}"
+DEVICE="${LLAMA_DEVICE:-${DEVICE_ARG:-}}"
 
 # ── Runtime GPU validation: Intel Gen7- → force NGL=0 ────────────────────
 if [ "$NGL" -gt 0 ] && _check_intel_old_gpu; then
@@ -194,6 +213,7 @@ CTX_SIZE="${LLAMA_CTX_SIZE:-${CTX_SIZE_ARG:-$(_calc_safe_ctx "$MODEL_CTX" "$TOTA
 N_PREDICT="${LLAMA_N_PREDICT:-${N_PREDICT_ARG:-$DEFAULT_N_PREDICT}}"
 THREADS="${LLAMA_THREADS:-${THREADS_ARG:-$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)}}"
 BATCH="${LLAMA_BATCH_SIZE:-${BATCH_ARG:-$(_detect_batch_size)}}"
+UBATCH="${LLAMA_UBATCH_SIZE:-${UBATCH_ARG:-$BATCH}}"
 CACHE_RAM="${LLAMA_CACHE_RAM:-${CACHE_RAM_ARG:-4096}}"
 SLOT_SAVE_PATH="${SLOT_SAVE_ARG:-}"
 
@@ -203,8 +223,10 @@ _llama_log "  Puerto:     $PORT"
 _llama_log "  Contexto:   $CTX_SIZE (máx modelo: $MODEL_CTX)"
 _llama_log "  Generación: $N_PREDICT tokens"
 _llama_log "  Capas GPU:  $NGL"
+[ -n "$DEVICE" ] && _llama_log "  Dispositivo: $DEVICE"
 _llama_log "  Hilos:      $THREADS"
 _llama_log "  Batch:      $BATCH"
+_llama_log "  UBatch:     $UBATCH"
 _llama_log "  Cache RAM:  ${CACHE_RAM}MB"
 [ -n "$SLOT_SAVE_PATH" ] && _llama_log "  Cache disk: $SLOT_SAVE_PATH"
 [ "$VERBOSE" = "1" ] && _llama_log "  RAM total: ${TOTAL_MEM}MB  libre: ${FREE_MEM}MB"
@@ -237,7 +259,8 @@ fi
 echo $$ > "$PIDFILE"
 
 # ── Lanzar ────────────────────────────────────────────────────────────────
-exec "/opt/llama.cpp/current/bin/llama-server" \
+SERVER_ARGS=(
+  "/opt/llama.cpp/current/bin/llama-server"
   -m "$MODEL" \
   --host 0.0.0.0 \
   --port "$PORT" \
@@ -245,32 +268,63 @@ exec "/opt/llama.cpp/current/bin/llama-server" \
   --jinja \
   --ctx-size "$CTX_SIZE" \
   -n "$N_PREDICT" \
-  -tb "$BATCH" \
-  --cache-ram "$CACHE_RAM" \
-  $( [ -n "$SLOT_SAVE_PATH" ] && echo "--slot-save-path $SLOT_SAVE_PATH" ) \
   -t "$THREADS" \
-  "${PASSTHROUGH[@]}"
+  -tb "$THREADS" \
+  -b "$BATCH" \
+  -ub "$UBATCH" \
+  --cache-ram "$CACHE_RAM" \
+)
+[ -n "$DEVICE" ] && SERVER_ARGS+=(--device "$DEVICE")
+[ -n "$SLOT_SAVE_PATH" ] && SERVER_ARGS+=(--slot-save-path "$SLOT_SAVE_PATH")
+SERVER_ARGS+=("${PASSTHROUGH[@]}")
+exec "${SERVER_ARGS[@]}"
 WRAPPER
 
 # ── Inyectar default NGL según GPU detectada ──────────────────────────────
-sed -i "s|__DEFAULT_NGL__|${GPU_NGL_DEFAULT}|" "$WRAPPERS_DIR/start-server.sh"
+replace_ngl_placeholder "$WRAPPERS_DIR/start-server.sh"
 chmod 755 "$WRAPPERS_DIR/start-server.sh"
 
 # --- bench.sh -----------------------------------------------------------------
 cat > "$WRAPPERS_DIR/bench.sh" << 'WRAPPER'
 #!/usr/bin/env bash
 # Benchmark rápido del modelo indicado.
-# Uso: bench.sh <ruta-al-modelo.gguf>
+# Uso: bench.sh <ruta-al-modelo.gguf> [args-extra...]
 set -euo pipefail
 MODEL="${1:?Especifica la ruta al modelo .gguf}"
+shift
 exec "/opt/llama.cpp/current/bin/llama-bench" \
   -m "$MODEL" \
   -ngl "${NGL:-__DEFAULT_NGL__}" \
   "$@"
 WRAPPER
 
-sed -i "s|__DEFAULT_NGL__|${GPU_NGL_DEFAULT}|" "$WRAPPERS_DIR/bench.sh"
+replace_ngl_placeholder "$WRAPPERS_DIR/bench.sh"
 chmod 755 "$WRAPPERS_DIR/bench.sh"
+
+# --- benchmark-best.sh / run-best.sh -----------------------------------------
+cat > "$WRAPPERS_DIR/benchmark-best.sh" << 'WRAPPER'
+#!/usr/bin/env bash
+# Ejecuta el benchmark adaptativo y guarda el perfil local del modelo.
+# Uso: benchmark-best.sh <ruta-al-modelo.gguf> [--objective tg|pp]
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec python3 "$SCRIPT_DIR/runtime.py" benchmark "$@"
+WRAPPER
+chmod 755 "$WRAPPERS_DIR/benchmark-best.sh"
+
+cat > "$WRAPPERS_DIR/run-best.sh" << 'WRAPPER'
+#!/usr/bin/env bash
+# Inicia llama-server con el backend ganador del benchmark local.
+# Uso: run-best.sh <ruta-al-modelo.gguf> [--objective tg|pp] [--port 43110]
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec python3 "$SCRIPT_DIR/runtime.py" serve \
+  --llama-bench "$SCRIPT_DIR/../bin/llama-bench" \
+  --llama-server "$SCRIPT_DIR/../bin/llama-server" \
+  --stop-script "$SCRIPT_DIR/stop-server.sh" \
+  "$@"
+WRAPPER
+chmod 755 "$WRAPPERS_DIR/run-best.sh"
 
 # --- start-server-embedding.sh -------------------------------------------------
 cat > "$WRAPPERS_DIR/start-server-embedding.sh" << 'WRAPPER'
@@ -286,6 +340,7 @@ cat > "$WRAPPERS_DIR/start-server-embedding.sh" << 'WRAPPER'
 #   --pooling <m>           Método: mean|cls|last|none|rank (default: mean)
 #   --ctx-size <n>          Tamaño de contexto (default: auto-detectado)
 #   --ngl <n>               Capas GPU (default: detectado en compilación)
+#   --device <name>         Dispositivo explícito: BLAS o Vulkan0
 #   -t, --threads <n>       Hilos (default: todos los núcleos)
 #   -b, --batch-size <n>     Tamaño de lote 256|512|... (default: auto)
 #   --cache-ram <N>          RAM para KV cache en MiB (default: 4096, 0=off)
@@ -389,6 +444,8 @@ POOLING=""
 CTX_SIZE_ARG=""
 THREADS_ARG=""
 BATCH_ARG=""
+UBATCH_ARG=""
+DEVICE_ARG=""
 CACHE_RAM_ARG=""
 SLOT_SAVE_ARG=""
 VERBOSE=0
@@ -401,8 +458,10 @@ while [[ $# -gt 0 ]]; do
         --pooling)     POOLING="$2"; shift 2 ;;
         --ctx-size)    CTX_SIZE_ARG="$2"; shift 2 ;;
         --ngl)         NGL="$2"; shift 2 ;;
+        --device)      DEVICE_ARG="$2"; shift 2 ;;
         -t|--threads)  THREADS_ARG="$2"; shift 2 ;;
         -b|--batch-size) BATCH_ARG="$2"; shift 2 ;;
+        --ubatch-size) UBATCH_ARG="$2"; shift 2 ;;
         --cache-ram)   CACHE_RAM_ARG="$2"; shift 2 ;;
         --no-cache-prompt) CACHE_RAM_ARG="0"; shift ;;
         --slot-save-path) SLOT_SAVE_ARG="$2"; shift 2 ;;
@@ -426,6 +485,7 @@ done
 [ -z "$MODEL" ] && { _llama_warn "Especifica --model <ruta.gguf>"; exit 1; }
 PORT="${PORT:-$DEFAULT_PORT}"
 NGL="${LLAMA_NGL:-${NGL:-$DEFAULT_NGL}}"
+DEVICE="${LLAMA_DEVICE:-${DEVICE_ARG:-}}"
 POOLING="${POOLING:-$DEFAULT_POOLING}"
 
 # ── Runtime GPU validation: Intel Gen7- → force NGL=0 ────────────────────
@@ -446,6 +506,7 @@ FREE_MEM=$(_get_free_mem_mb)
 CTX_SIZE="${LLAMA_CTX_SIZE:-${CTX_SIZE_ARG:-$(_calc_safe_ctx "$MODEL_CTX" "$TOTAL_MEM" "$FREE_MEM")}}"
 THREADS="${LLAMA_THREADS:-${THREADS_ARG:-$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)}}"
 BATCH="${LLAMA_BATCH_SIZE:-${BATCH_ARG:-$(_detect_batch_size)}}"
+UBATCH="${LLAMA_UBATCH_SIZE:-${UBATCH_ARG:-$BATCH}}"
 CACHE_RAM="${LLAMA_CACHE_RAM:-${CACHE_RAM_ARG:-4096}}"
 SLOT_SAVE_PATH="${SLOT_SAVE_ARG:-}"
 
@@ -477,14 +538,17 @@ exec "/opt/llama.cpp/current/bin/llama-server" \
   --embeddings \
   --pooling "$POOLING" \
   --ctx-size "$CTX_SIZE" \
-  -tb "$BATCH" \
-  --cache-ram "$CACHE_RAM" \
-  $( [ -n "$SLOT_SAVE_PATH" ] && echo "--slot-save-path $SLOT_SAVE_PATH" ) \
   -t "$THREADS" \
+  -tb "$THREADS" \
+  -b "$BATCH" \
+  -ub "$UBATCH" \
+  --cache-ram "$CACHE_RAM" \
+  $( [ -n "$DEVICE" ] && echo "--device $DEVICE" ) \
+  $( [ -n "$SLOT_SAVE_PATH" ] && echo "--slot-save-path $SLOT_SAVE_PATH" ) \
   "${PASSTHROUGH[@]}"
 WRAPPER
 
-sed -i "s|__DEFAULT_NGL__|${GPU_NGL_DEFAULT}|" "$WRAPPERS_DIR/start-server-embedding.sh"
+replace_ngl_placeholder "$WRAPPERS_DIR/start-server-embedding.sh"
 chmod 755 "$WRAPPERS_DIR/start-server-embedding.sh"
 
 # --- stop-server.sh ------------------------------------------------------------

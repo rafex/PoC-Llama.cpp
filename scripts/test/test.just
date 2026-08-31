@@ -22,3 +22,4 @@ test-smoke:
 test-api:
     make test-api
 
+# test-runtime está definido por el dominio scripts/runtime.
