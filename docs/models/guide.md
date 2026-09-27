@@ -42,6 +42,9 @@ just model-download-type multimodal
 # Descargar directamente por ID (sin menú)
 just model-download-id qwen2.5-1.5b-chat-q4
 
+# Descargar Qwen3.5 2B con verificación SHA-256
+just model-download-qwen35-2b
+
 # Solo listar el catálogo sin descargar
 just model-list
 ```

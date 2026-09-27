@@ -3,7 +3,7 @@
 # Incluido por el Makefile raíz.
 # =============================================================================
 
-.PHONY: model-list model-list-smart model-download model-download-smart model-download-id model-quantize
+.PHONY: model-list model-list-smart model-download model-download-smart model-download-id model-download-qwen35-2b model-quantize
 
 
 MODEL_DOWNLOAD    := scripts/models/model-download.py
@@ -53,7 +53,10 @@ ifndef ID
 endif
 	@python3 $(MODEL_DOWNLOAD) --id $(ID)
 
+## Descarga Qwen3.5 2B Q4_K_M y verifica su SHA-256
+model-download-qwen35-2b:
+	@python3 $(MODEL_DOWNLOAD) --id qwen3.5-2b-chat-q4
+
 ## Cuantización local de modelos descargados
 model-quantize:
 	@python3 scripts/models/quantize.py
-

@@ -33,3 +33,7 @@ model-download-type type:
 # Descarga directamente por ID sin menú (ej: just model-download-id qwen2.5-1.5b-chat-q4)
 model-download-id id:
     python3 scripts/models/model-download.py --id {{id}}
+
+# Descarga Qwen3.5 2B Q4_K_M y verifica su SHA-256
+model-download-qwen35-2b:
+    python3 scripts/models/model-download.py --id qwen3.5-2b-chat-q4
