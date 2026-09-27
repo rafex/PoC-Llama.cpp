@@ -33,13 +33,12 @@ generator = "Unix Makefiles"
 # Binarios verificados con `command -v`
 commands = ["git", "cmake", "gcc", "g++", "pkg-config"]
 # Librerías verificadas con `pkg-config --exists`
-pkg_config = ["openblas", "openssl"]
+pkg_config = ["openssl"]
 # Paquetes sugeridos para instalar (solo referencia, no se instalan automáticamente)
 apt_packages = [
   "build-essential",
   "cmake",
   "git",
-  "libopenblas-dev",
   "libssl-dev",
   "pkg-config",
   "libvulkan-dev",
@@ -51,8 +50,10 @@ apt_packages = [
 # Los flags de CPU (GGML_AVX, GGML_BMI2, compiler.*) vienen de ivybridge.toml.
 [cmake.flags]
 BUILD_SHARED_LIBS    = "OFF"
-GGML_BLAS            = "ON"
-GGML_BLAS_VENDOR     = "OpenBLAS"
+# BLAS apagado: con AVX activo, el backend CPU de ggml es más rápido que
+# OpenBLAS en modelos cuantizados (pp64 16.6 vs 12.1 tok/s, 2026-09-26), y
+# OpenBLAS abre su propio pool de hilos que compite con los de ggml.
+GGML_BLAS            = "OFF"
 GGML_METAL           = "OFF"
 GGML_VULKAN          = "OFF" # Cambiar a ON si se desea aceleración GPU con Intel HD Graphics 4000 vía Vulkan
 LLAMA_BUILD_TESTS    = "OFF"

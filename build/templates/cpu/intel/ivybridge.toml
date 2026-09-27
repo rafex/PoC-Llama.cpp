@@ -41,19 +41,21 @@ avx512 = false
 march = "ivybridge"
 mtune = "ivybridge"
 
-# Baseline SSE4.2-only.
+# AVX + F16C, sin FMA3 / BMI1 / BMI2 / AVX2.
 #
-# Por qué -mno-avx si Ivy Bridge SÍ tiene AVX:
-#   Cuando GGML_AVX=ON, ggml cmake añade flags de extensiones relacionadas
-#   (FMA, F16C, BMI2) asumiendo que van juntas. Ivy Bridge tiene AVX y F16C
-#   pero NO FMA3 ni BMI2, lo que genera SIGILL. Es más seguro desactivar AVX
-#   en cmake y dejarlo en OFF hasta tener un perfil validado.
+# Historia (ver ADR-005 y ADR-007): el SIGILL original venía de GGML_BMI2, que
+# ggml tiene en ON por defecto cuando GGML_NATIVE=OFF, no de AVX. En ese
+# momento también se apagaron AVX y F16C "por si acaso", y el binario quedó en
+# SSE4.2 puro: en el Mac mini 6,2 (Bastion) daba 1.8 tok/s de generación con
+# qwen2.5-3b q4_k_m. Con AVX+F16C, mismo commit de llama.cpp: 10.8 tok/s.
 #
-# Por qué -mno-bmi -mno-bmi2 si cmake tiene GGML_BMI2=OFF:
-#   Segunda barrera de defensa. GGML usa target_compile_options() que se
-#   aplica DESPUÉS de CMAKE_C_FLAGS. Si algún path de cmake re-activa BMI2,
-#   el compilador lo rechaza en build-time. Ver ADR-005.
-cflags = "-O3 -ffast-math -fno-finite-math-only -mno-avx -mno-avx2 -mno-fma -mno-f16c -mno-bmi -mno-bmi2"
+# En ggml cada extensión es una opción independiente (-mavx, -mf16c, -mfma,
+# -mbmi2); encender AVX no arrastra FMA ni BMI2. Los -mno-* que quedan son la
+# segunda barrera para lo que Ivy Bridge NO tiene.
+#
+# Verificación del binario (debe dar 0 en BMI2/FMA/AVX2 y >0 en ymm):
+#   objdump -d llama-server | grep -cE "shlx|vfmadd|vpbroadcast"   → 0
+cflags = "-O3 -ffast-math -fno-finite-math-only -mno-avx2 -mno-fma -mno-bmi -mno-bmi2"
 
 # =============================================================================
 # Flags cmake de extensiones CPU
@@ -65,9 +67,10 @@ cflags = "-O3 -ffast-math -fno-finite-math-only -mno-avx -mno-avx2 -mno-fma -mno
 # GGML_BMI2=OFF es crítico: ggml-cpu/CMakeLists.txt lo tiene en ON por defecto
 # y lo inyecta vía target_compile_options() pisando CMAKE_C_FLAGS.
 # Ver docs/architecture/decisions.md ADR-005 y docs/troubleshooting/common-issues.md
-GGML_AVX    = "OFF"
+GGML_AVX    = "ON"    # Ivy Bridge sí tiene AVX (256 bits): ×6 en generación
+GGML_F16C   = "ON"    # conversión fp16↔fp32 en hardware (KV cache fp16)
 GGML_AVX2   = "OFF"
-GGML_BMI2   = "OFF"
-GGML_F16C   = "OFF"
-GGML_FMA    = "OFF"
+GGML_BMI2   = "OFF"   # default ON en ggml → SIGILL (SHLX) en Ivy Bridge
+GGML_FMA    = "OFF"   # Ivy Bridge no tiene FMA3
+GGML_AVX512 = "OFF"
 GGML_NATIVE = "OFF"

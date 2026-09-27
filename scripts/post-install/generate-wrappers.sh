@@ -47,7 +47,7 @@ cat > "$WRAPPERS_DIR/start-server.sh" << 'WRAPPER'
 #   -n, --n-predict <n>     Tokens a generar (default: 512)
 #   --ngl <n>               Capas GPU (default: detectado en compilación)
 #   --device <name>         Dispositivo explícito: BLAS o Vulkan0
-#   -t, --threads <n>       Hilos (default: todos los núcleos)
+#   -t, --threads <n>       Hilos (default: núcleos físicos)
 #   -b, --batch-size <n>    Tamaño lógico de lote (default: auto)
 #   --ubatch-size <n>       Tamaño físico de lote (default: igual a batch)
 #   --cache-ram <N>          RAM para KV cache en MiB (default: 4096, 0=off)
@@ -136,6 +136,22 @@ _check_intel_old_gpu() {
     return 1
 }
 
+# Núcleos físicos, no hilos lógicos: con Hyper-Threading, ggml rinde menos
+# usando todos los hilos (i7-3615QM, qwen2.5-3b: 10.8 tok/s con 4, 7.5 con 8).
+_detect_threads() {
+    local n=""
+    if command -v lscpu >/dev/null 2>&1; then
+        n=$(lscpu -p=CORE,SOCKET 2>/dev/null | grep -v '^#' | sort -u | wc -l | tr -d ' ')
+    fi
+    if [ -z "$n" ] || [ "$n" -le 0 ] 2>/dev/null; then
+        n=$(sysctl -n hw.physicalcpu 2>/dev/null || echo "")
+    fi
+    if [ -z "$n" ] || [ "$n" -le 0 ] 2>/dev/null; then
+        n=$(nproc 2>/dev/null || echo 4)
+    fi
+    echo "$n"
+}
+
 _detect_batch_size() {
     if [ "$NGL" -gt 0 ]; then echo 512
     elif [ "$THREADS" -ge 8 ]; then echo 512
@@ -211,7 +227,7 @@ FREE_MEM=$(_get_free_mem_mb)
 
 CTX_SIZE="${LLAMA_CTX_SIZE:-${CTX_SIZE_ARG:-$(_calc_safe_ctx "$MODEL_CTX" "$TOTAL_MEM" "$FREE_MEM")}}"
 N_PREDICT="${LLAMA_N_PREDICT:-${N_PREDICT_ARG:-$DEFAULT_N_PREDICT}}"
-THREADS="${LLAMA_THREADS:-${THREADS_ARG:-$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)}}"
+THREADS="${LLAMA_THREADS:-${THREADS_ARG:-$(_detect_threads)}}"
 BATCH="${LLAMA_BATCH_SIZE:-${BATCH_ARG:-$(_detect_batch_size)}}"
 UBATCH="${LLAMA_UBATCH_SIZE:-${UBATCH_ARG:-$BATCH}}"
 CACHE_RAM="${LLAMA_CACHE_RAM:-${CACHE_RAM_ARG:-4096}}"
@@ -341,7 +357,7 @@ cat > "$WRAPPERS_DIR/start-server-embedding.sh" << 'WRAPPER'
 #   --ctx-size <n>          Tamaño de contexto (default: auto-detectado)
 #   --ngl <n>               Capas GPU (default: detectado en compilación)
 #   --device <name>         Dispositivo explícito: BLAS o Vulkan0
-#   -t, --threads <n>       Hilos (default: todos los núcleos)
+#   -t, --threads <n>       Hilos (default: núcleos físicos)
 #   -b, --batch-size <n>     Tamaño de lote 256|512|... (default: auto)
 #   --cache-ram <N>          RAM para KV cache en MiB (default: 4096, 0=off)
 #   --no-cache-prompt        Desactiva el cache de prompt
@@ -429,6 +445,22 @@ _check_intel_old_gpu() {
     return 1
 }
 
+# Núcleos físicos, no hilos lógicos: con Hyper-Threading, ggml rinde menos
+# usando todos los hilos (i7-3615QM, qwen2.5-3b: 10.8 tok/s con 4, 7.5 con 8).
+_detect_threads() {
+    local n=""
+    if command -v lscpu >/dev/null 2>&1; then
+        n=$(lscpu -p=CORE,SOCKET 2>/dev/null | grep -v '^#' | sort -u | wc -l | tr -d ' ')
+    fi
+    if [ -z "$n" ] || [ "$n" -le 0 ] 2>/dev/null; then
+        n=$(sysctl -n hw.physicalcpu 2>/dev/null || echo "")
+    fi
+    if [ -z "$n" ] || [ "$n" -le 0 ] 2>/dev/null; then
+        n=$(nproc 2>/dev/null || echo 4)
+    fi
+    echo "$n"
+}
+
 _detect_batch_size() {
     if [ "$NGL" -gt 0 ]; then echo 512
     elif [ "$THREADS" -ge 8 ]; then echo 512
@@ -504,7 +536,7 @@ FREE_MEM=$(_get_free_mem_mb)
 [ "$VERBOSE" = "1" ] && _llama_log "RAM total: ${TOTAL_MEM}MB, libre: ${FREE_MEM}MB"
 
 CTX_SIZE="${LLAMA_CTX_SIZE:-${CTX_SIZE_ARG:-$(_calc_safe_ctx "$MODEL_CTX" "$TOTAL_MEM" "$FREE_MEM")}}"
-THREADS="${LLAMA_THREADS:-${THREADS_ARG:-$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)}}"
+THREADS="${LLAMA_THREADS:-${THREADS_ARG:-$(_detect_threads)}}"
 BATCH="${LLAMA_BATCH_SIZE:-${BATCH_ARG:-$(_detect_batch_size)}}"
 UBATCH="${LLAMA_UBATCH_SIZE:-${UBATCH_ARG:-$BATCH}}"
 CACHE_RAM="${LLAMA_CACHE_RAM:-${CACHE_RAM_ARG:-4096}}"

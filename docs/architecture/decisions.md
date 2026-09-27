@@ -114,6 +114,10 @@ objdump -d $(which llama-cli) | grep -cE "shlx|shrx|sarx|rorx|pdep|pext"
 gdb -batch -ex "run --version" -ex "x/1i \$rip" --args llama-cli --version 2>&1
 ```
 
+> **Actualización (ADR-007):** apagar también `GGML_AVX` y `GGML_F16C` fue
+> excesivo: el SIGILL venía solo de `GGML_BMI2`. El perfil Ivy Bridge vuelve a
+> compilar con AVX + F16C.
+
 ## ADR-006: Detección de GPU y Aceleración Universal vía Vulkan / CUDA / Metal
 
 **Contexto:** Las GPUs integradas (como Intel HD Graphics 4000, Iris, Arc) y GPUs discretas pueden acelerar considerablemente la ejecución de modelos LLM descargando capas de la CPU a la GPU (`-ngl` / `--n-gpu-layers`).
@@ -127,3 +131,46 @@ gdb -batch -ex "run --version" -ex "x/1i \$rip" --args llama-cli --version 2>&1
 - `make debug-gpu` y `just gpu-info` diagnostican rápidamente la GPU instalada y el soporte de drivers.
 - Equipos con iGPUs Intel HD Graphics 4000 o superiores pueden aprovechar aceleración gráfica mediante Vulkan.
 
+## ADR-007: Ivy Bridge compila con AVX + F16C (y sin BLAS en el Mac mini 6,2)
+
+**Contexto:** en Bastion (Mac mini 6,2, i7-3615QM) el modelo
+`qwen2.5-3b-instruct-q4_k_m` generaba a **1.8 tok/s**. `objdump` mostró que el
+binario instalado no tenía **ni una instrucción AVX** (0 registros `ymm`): el
+perfil `cpu/intel/ivybridge` apagaba `GGML_AVX`/`GGML_F16C` y además pasaba
+`-mno-avx -mno-f16c`, así que ggml quedó en SSE4.2 puro. La justificación
+("AVX arrastra FMA/BMI2") no se sostiene: en `ggml/src/ggml-cpu/CMakeLists.txt`
+cada extensión es un flag independiente (`-mavx`, `-mf16c`, `-mfma`,
+`-mbmi2`); lo que causaba el SIGILL de ADR-005 era que `GGML_BMI2` (como las
+demás) está en `ON` por defecto con `GGML_NATIVE=OFF`.
+
+**Medición** (llama.cpp `c8e03ce`, `llama-bench -p 64 -n 32 -r 2`, 2026-09-26):
+
+| Build | Hilos | pp64 (tok/s) | tg32 (tok/s) |
+|---|---|---|---|
+| Instalado: SSE4.2 + OpenBLAS | 4 | 12.06 | 1.80 |
+| AVX + F16C, sin BLAS | 4 | **16.58** | **10.83** |
+| AVX + F16C, sin BLAS | 8 | 14.44 | 7.49 |
+
+El binario AVX tiene 0 instrucciones BMI2 (`shlx`, `pdep`…), 0 FMA
+(`vfmadd`) y 0 AVX2 (`vpbroadcast*`, `vperm2i128`…): corre en Ivy Bridge.
+
+**Decisión:**
+- `cpu/intel/ivybridge`: `GGML_AVX=ON`, `GGML_F16C=ON`; `GGML_AVX2`,
+  `GGML_FMA`, `GGML_BMI2`, `GGML_AVX512` en `OFF`. Los `-mno-*` quedan solo
+  para lo que el hardware no tiene (`-mno-avx2 -mno-fma -mno-bmi -mno-bmi2`).
+- `apple/macmini6.2`: `GGML_BLAS=OFF`. Con AVX, el backend CPU de ggml supera
+  a OpenBLAS en modelos cuantizados, y OpenBLAS agrega su propio pool de
+  hilos.
+- Wrappers (`start-server.sh`, `start-server-embedding.sh`): el default de
+  `--threads` pasa de `nproc` (hilos lógicos) a **núcleos físicos**
+  (`lscpu -p=CORE,SOCKET`; `hw.physicalcpu` en macOS). Con Hyper-Threading,
+  8 hilos rinden un 30 % menos que 4 en este CPU.
+
+**Consecuencias:**
+- Hay que recompilar e instalar en los equipos Ivy Bridge
+  (`make build-clean compile install PROFILE=apple/macmini6.2`) y regenerar
+  los wrappers.
+- Regla para perfiles de hardware viejo: apagar **solo** lo que el CPU no
+  tiene, verificando `/proc/cpuinfo`, y comprobar el binario con `objdump`
+  (que tenga lo esperado **y** que no tenga lo prohibido), no solo que no
+  crashee.

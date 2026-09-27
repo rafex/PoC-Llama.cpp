@@ -381,11 +381,20 @@ def gen_cflags(flags_set: set[str], vendor: str) -> str:
     base = "-O3 -ffast-math -fno-finite-math-only"
 
     if vendor in ("intel", "amd"):
-        # Si tiene AVX pero no FMA ni BMI2 → defensa en profundidad (ADR-005)
-        if "avx" in flags_set and "fma" not in flags_set and "bmi2" not in flags_set:
-            return base + " -mno-avx -mno-avx2 -mno-fma -mno-f16c -mno-bmi -mno-bmi2"
-        if "avx" in flags_set and "bmi2" not in flags_set:
-            return base + " -mno-bmi -mno-bmi2"
+        # Defensa en profundidad (ADR-005): -mno-* solo para lo que el CPU NO
+        # tiene. Nunca apagar extensiones presentes: dejar AVX fuera en Ivy
+        # Bridge costó ×6 en generación (ADR-007).
+        missing = [
+            opt for cpu_flag, opt in (
+                ("avx2", "-mno-avx2"),
+                ("fma", "-mno-fma"),
+                ("bmi1", "-mno-bmi"),
+                ("bmi2", "-mno-bmi2"),
+            )
+            if cpu_flag not in flags_set
+        ]
+        if "avx" in flags_set and missing:
+            return base + " " + " ".join(missing)
 
     return base
 
@@ -436,17 +445,11 @@ def gen_ggml_flags(vendor: str, flags_set: set[str], march: str) -> str:
             ("fma",    "GGML_FMA"),
             ("bmi2",   "GGML_BMI2"),
         ]
+        # Cada extensión es una opción independiente en ggml: AVX sin FMA/BMI2
+        # (Ivy Bridge) es válido. Lo importante es apagar explícitamente lo que
+        # falta, porque ggml las trae en ON por defecto (ADR-005, ADR-007).
         for cpu_flag, ggml_flag in flag_pairs:
-            present = cpu_flag in flags_set
-            # ivybridge-like: tiene avx pero no fma/bmi2
-            if cpu_flag == "avx" and present and "fma" not in flags_set:
-                # Caso especial: AVX sin FMA/BMI2 (ADR-005)
-                pass  # se maneja con GGML_AVX=OFF y -mno-*
-            flags[ggml_flag] = "ON" if present else "OFF"
-
-        # Si AVX está presente pero sin FMA ni BMI2, forzar OFF
-        if flags.get("GGML_AVX") == "ON" and flags.get("GGML_FMA") == "OFF":
-            flags["GGML_AVX"] = "OFF"
+            flags[ggml_flag] = "ON" if cpu_flag in flags_set else "OFF"
 
     elif vendor == "arm":
         flags["GGML_NEON"] = "ON" if ("asimd" in flags_set or "neon" in flags_set) else "OFF"

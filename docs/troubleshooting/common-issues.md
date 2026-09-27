@@ -102,6 +102,26 @@ just setup-profile apple/macmini6.2        # clona, compila e instala de nuevo
 
 ---
 
+## Generación muy lenta en CPU viejo (≈2 tok/s con un modelo 3B)
+
+**Síntoma:** `llama-server` responde, pero muy lento; `llama-bench` da
+`tg32` ≈ 1–2 tok/s en un modelo 3B q4 (lo esperado en un i7 de 3ª gen es ~10).
+
+**Causa probable:** el binario se compiló sin las extensiones SIMD que el CPU
+sí tiene (ver ADR-007). Comprobarlo:
+
+```bash
+# 0 = el binario no usa AVX aunque el CPU lo tenga
+objdump -d $(which llama-server) | grep -c ymm
+grep -o -w -E "avx|avx2|f16c|fma" /proc/cpuinfo | sort -u
+```
+
+**Solución:** activar en el perfil las extensiones que el CPU tiene y
+recompilar. Revisar también `--threads`: con Hyper-Threading, usar los
+núcleos físicos (default de los wrappers desde ADR-007).
+
+---
+
 ## SIGILL (rc=132) al ejecutar `llama-cli`
 
 **Síntoma:**
@@ -153,16 +173,16 @@ impide que cmake inyecte el flag en origen:
 
 ```toml
 [cmake.flags]
-GGML_AVX    = "OFF"   # también desactiva paths de código que asumen BMI2
+GGML_AVX    = "ON"    # Ivy Bridge sí tiene AVX: apagarlo no evita el SIGILL (ADR-007)
+GGML_F16C   = "ON"
 GGML_AVX2   = "OFF"
 GGML_BMI2   = "OFF"   # ← clave: evita -mbmi2 vía target_compile_options
-GGML_F16C   = "OFF"
 GGML_FMA    = "OFF"
 GGML_NATIVE = "OFF"
 
 [compiler]
 # -mno-bmi -mno-bmi2: segunda barrera por si algún path de cmake lo re-añade
-cflags = "-O3 -ffast-math -fno-finite-math-only -mno-avx -mno-avx2 -mno-fma -mno-f16c -mno-bmi -mno-bmi2"
+cflags = "-O3 -ffast-math -fno-finite-math-only -mno-avx2 -mno-fma -mno-bmi -mno-bmi2"
 ```
 
 Reconstruir desde cero después de actualizar el perfil:
