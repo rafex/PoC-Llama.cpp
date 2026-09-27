@@ -62,8 +62,10 @@ update:
 	  current=$$(git -C $(LLAMA_SRC_DIR) describe --tags --abbrev=0 2>/dev/null || echo "desconocido"); \
 	  printf "$(CYAN)[INFO]$(RESET)  Local     : $$current\n"; \
 	  printf "$(CYAN)[INFO]$(RESET)  Disponible: $$latest\n"; \
-	  if [ "$$current" = "$$latest" ]; then \
-	    printf "$(GREEN)[OK]$(RESET)    Ya estás en la versión más reciente.\n"; \
+	  current_commit=$$(git -C $(LLAMA_SRC_DIR) rev-parse "$$current^{commit}" 2>/dev/null || true); \
+	  latest_commit=$$(git ls-remote --tags --refs "$(LLAMA_REPO_URL)" "refs/tags/$$latest" 2>/dev/null | awk '{print $$1}'); \
+	  if [ "$$current" = "$$latest" ] || { [ -n "$$current_commit" ] && [ "$$current_commit" = "$$latest_commit" ]; }; then \
+	    printf "$(GREEN)[OK]$(RESET)    Local y disponible apuntan al mismo commit ($${current_commit:-$$latest}).\n"; \
 	  else \
 	    printf "$(CYAN)[INFO]$(RESET)  Actualizando $$current → $$latest ...\n"; \
 	    rm -rf $(LLAMA_SRC_DIR) $(LLAMA_BUILD_DIR); \
