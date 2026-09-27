@@ -14,7 +14,7 @@ import json
 import sys
 import urllib.request
 
-GH_API = "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest"
+GH_API = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
 
 
 def main() -> None:

@@ -1,6 +1,6 @@
 # PoC-Llama.cpp
 
-Prueba de concepto para ejecutar LLMs de manera local usando [llama.cpp](https://github.com/ggerganov/llama.cpp).
+Prueba de concepto para ejecutar LLMs de manera local usando [llama.cpp](https://github.com/ggml-org/llama.cpp).
 
 ## Índice de documentación
 

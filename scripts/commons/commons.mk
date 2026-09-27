@@ -21,7 +21,7 @@ MODELS_DIR      := /srv/models
 SYMLINK_BIN     := /usr/local/bin
 
 # --- Repositorio llama.cpp ---------------------------------------------------
-LLAMA_REPO_URL  := https://github.com/ggerganov/llama.cpp.git
+LLAMA_REPO_URL  ?= https://github.com/ggml-org/llama.cpp.git
 LLAMA_SRC_DIR   := $(CURDIR)/build/llama.cpp
 LLAMA_BUILD_DIR := $(LLAMA_SRC_DIR)/build-out
 

@@ -21,7 +21,7 @@ Guía completa para compilar, instalar y ejecutar llama.cpp con perfiles de hard
 
 ## 1. Introducción
 
-PoC-Llama.cpp es una prueba de concepto para ejecutar modelos de lenguaje (LLMs) localmente usando [llama.cpp](https://github.com/ggerganov/llama.cpp). Compila llama.cpp con flags optimizados para la CPU del host, lo instala en una estructura versionada y expone los binarios vía symlinks.
+PoC-Llama.cpp es una prueba de concepto para ejecutar modelos de lenguaje (LLMs) localmente usando [llama.cpp](https://github.com/ggml-org/llama.cpp). Compila llama.cpp con flags optimizados para la CPU del host, lo instala en una estructura versionada y expone los binarios vía symlinks.
 
 ### Arquitectura del proyecto
 

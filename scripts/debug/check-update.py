@@ -14,7 +14,7 @@ import sys
 import urllib.request
 from typing import Optional, Tuple
 
-GH_API = "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest"
+GH_API = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
 COLORS = {
     "green":  "\033[32m",
     "yellow": "\033[33m",
@@ -29,8 +29,15 @@ def c(color: str, text: str) -> str:
 
 
 def build_num(tag: str) -> int:
-    stripped = tag.lstrip("b")
+    """Devuelve un número comparable para los tags nocturnos bNNNN."""
+    stripped = tag.removeprefix("b")
     return int(stripped) if stripped.isdigit() else 0
+
+
+def is_semver(tag: str) -> bool:
+    """Indica si el tag pertenece al formato de releases vX.Y.Z."""
+    parts = tag.removeprefix("v").split(".")
+    return tag.startswith("v") and len(parts) == 3 and all(p.isdigit() for p in parts)
 
 
 def local_version(src_dir: str) -> Tuple[Optional[str], Optional[str]]:
@@ -117,13 +124,29 @@ def main() -> None:
 
     # --- Comparar ---
     print()
-    local_n  = build_num(tag or "")
+    local_n = build_num(tag or "")
     latest_n = build_num(latest_tag)
 
-    if local_n == 0:
-        print("  {}  No se puede comparar — tag local no reconocido.".format(c("yellow", "[?]")))
-    elif local_n >= latest_n:
+    if tag == latest_tag:
         print("  {}  Estás en la última versión ({}).".format(c("green", "[OK]"), latest_tag))
+    elif is_semver(latest_tag) and is_semver(tag or ""):
+        print("  {}  Hay una versión más reciente disponible.".format(c("yellow", "[UPDATE]")))
+        print("           Local     : {}".format(tag))
+        print("           Disponible: {}".format(latest_tag))
+        print()
+        print("  Para actualizar:")
+        print("    make update")
+        print("    make compile PROFILE=<tu-perfil>")
+    elif local_n and latest_n and local_n >= latest_n:
+        print("  {}  Estás en una release nocturna igual o posterior a {}.".format(c("green", "[OK]"), latest_tag))
+    elif local_n == 0 or latest_n == 0:
+        print("  {}  Hay una versión distinta disponible; no se comparan familias de tags.".format(c("yellow", "[?]")))
+        print("           Local     : {}".format(tag or "desconocido"))
+        print("           Disponible: {}".format(latest_tag))
+        print()
+        print("  Para actualizar:")
+        print("    make update")
+        print("    make compile PROFILE=<tu-perfil>")
     else:
         diff = latest_n - local_n
         print("  {}  Hay una versión más reciente disponible.".format(c("yellow", "[UPDATE]")))

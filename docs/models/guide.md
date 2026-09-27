@@ -15,6 +15,11 @@
 El proyecto incluye un catálogo en `build/models/catalog.toml` con modelos
 probados y recomendados, agrupados por tipo:
 
+En Bastion (Intel i7-3615QM, 4 núcleos físicos, 8 hilos y 15 GB de RAM), las
+opciones SLM ligeras recomendadas son `qwen3.5-0.8b-chat-q4` y
+`lfm2-1.2b-chat-q4`. `gemma3-270m-chat-q8` y `smollm2-135m-chat-q4` sirven
+como baselines de latencia mínima; su calidad es menor.
+
 | Tipo        | Descripción                              |
 |-------------|------------------------------------------|
 | `chat`      | Modelos de conversación general          |
@@ -56,6 +61,10 @@ just model-list
 | `tinyllama-1.1b-chat-q4`           | TinyLlama 1.1B Q4_K_M         | ~0.7 GB | 2 GB  |
 | `llama3.2-1b-chat-q4`              | Llama 3.2 1B Q4_K_M           | ~0.8 GB | 2 GB  |
 | `llama3.2-3b-chat-q4`              | Llama 3.2 3B Q4_K_M           | ~2.0 GB | 4 GB  |
+| `qwen3.5-0.8b-chat-q4`             | Qwen3.5 0.8B Q4_K_M           | ~0.6 GB | 2 GB  |
+| `lfm2-1.2b-chat-q4`                 | LiquidAI LFM2 1.2B Q4_K_M    | ~0.8 GB | 2 GB  |
+| `gemma3-270m-chat-q8`               | Gemma 3 270M Q8_0             | ~0.3 GB | 1 GB  |
+| `smollm2-135m-chat-q4`              | SmolLM2 135M Q4_K_M           | ~0.1 GB | 1 GB  |
 
 ### Coding — generación de código
 

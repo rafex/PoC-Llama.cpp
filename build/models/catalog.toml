@@ -260,6 +260,50 @@ ram_gb      = 4
 dest_dir    = "gguf"
 description = "Modelo compacto moderno de 3B. Buena alternativa general cuando Qwen/Phi no den el comportamiento deseado."
 
+[[models]]
+id          = "qwen3.5-0.8b-chat-q4"
+name        = "Qwen3.5 0.8B Instruct Q4_K_M"
+type        = "chat"
+hf_repo     = "unsloth/Qwen3.5-0.8B-GGUF"
+hf_file     = "Qwen3.5-0.8B-Q4_K_M.gguf"
+size_gb     = 0.6
+ram_gb      = 2
+dest_dir    = "gguf"
+description = "SLM moderno y muy ligero. Recomendado para Bastion cuando se priorizan latencia y bajo consumo; requiere llama.cpp reciente."
+
+[[models]]
+id          = "lfm2-1.2b-chat-q4"
+name        = "LiquidAI LFM2 1.2B Q4_K_M"
+type        = "chat"
+hf_repo     = "LiquidAI/LFM2-1.2B-GGUF"
+hf_file     = "LFM2-1.2B-Q4_K_M.gguf"
+size_gb     = 0.8
+ram_gb      = 2
+dest_dir    = "gguf"
+description = "SLM compacto de Liquid AI, conversacional y multilingüe. Buena opción para CPU antigua con OpenBLAS."
+
+[[models]]
+id          = "gemma3-270m-chat-q8"
+name        = "Google Gemma 3 270M Instruct Q8_0"
+type        = "chat"
+hf_repo     = "ggml-org/gemma-3-270m-it-GGUF"
+hf_file     = "gemma-3-270m-it-Q8_0.gguf"
+size_gb     = 0.3
+ram_gb      = 1
+dest_dir    = "gguf"
+description = "Modelo instruct ultraligero oficial de ggml-org. Ideal como baseline de latencia y para clasificación o respuestas cortas."
+
+[[models]]
+id          = "smollm2-135m-chat-q4"
+name        = "SmolLM2 135M Q4_K_M"
+type        = "chat"
+hf_repo     = "ggml-org/SmolLM2-135M-GGUF"
+hf_file     = "SmolLM2-135M-Q4_K_M.gguf"
+size_gb     = 0.1
+ram_gb      = 1
+dest_dir    = "gguf"
+description = "Baseline extremadamente pequeño para medir la latencia mínima de llama.cpp; calidad limitada frente a Qwen3.5 o LFM2."
+
 # -----------------------------------------------------------------------------
 # Coding — modelos especializados en código
 # -----------------------------------------------------------------------------
